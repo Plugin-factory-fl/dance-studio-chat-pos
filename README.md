@@ -21,7 +21,11 @@ Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
 * `lib/types.ts`: families, students, classes, ledger (charges and payments), attendance, messages, processor.
 * `lib/engine.ts`: command parser and actions. Both threads write to the same family accounts, and charges, enrollments and payments are posted into both threads.
 * `lib/seed.ts`: demo data: 6 families, 8 dancers, 6 classes, 4 instructors with per class rates, costumes by size, studio store items, the Spring Showcase (tickets, running order, vendors) and waivers.
-* Payments run through a stub processor. The default is S## Demo script
+* Payments run through a stub processor. The default is S## Editing policies
+
+Every policy and offering parents see is a placeholder in **`lib/policy.ts`**: dress code, absence policy, trial fee, competition teams, specialty classes, solo and duo pricing, recital details, payment plans and the medical and refund policy. Edit that one file, rebuild, and the chat answers update. Use Reset demo to reload specialty classes into saved data.
+
+## Demo script
 
 Tap the suggestion chips under each thread, or type these. Use the family picker in the parent thread header to switch families.
 
@@ -46,6 +50,12 @@ Parent threads (all self service, finished in chat with a notice to the owner th
 * `What does my child need to wear to class?` shows the dress code by style and for your dancers.
 * `Are there leotards and tights available or do I need to buy those?` shows sizes in stock with **Buy** buttons charged to the family account.
 * `My child is going to miss the next 3 classes, do I need to pay for those 3 classes or can I cancel?` explains the absence policy (credit of a quarter of monthly tuition per class when reported 24 hours ahead) with **Cancel those 3 classes**.
+* `show me how many pairs of tights I've purchased this year for my 12 year old and 14 year old.` (try the Garcia family) shows purchases per dancer with dates, sizes and totals.
+* `Are there any competition groups or specialty classes my child can enroll in?` filters teams and specialty classes by your dancers' ages. Open specialty classes enroll instantly; auditions and Pointe go to the owner.
+* `Do you offer solos, duos and trios?` shows pricing with **Request a solo** (sent to the owner for scheduling).
+* `Is there a dance recital every year?` shows the Spring Showcase details and whether your dancers are in it.
+* `Are there any payment plans?` lists the plans with a **Switch** button that applies right away.
+* `What if my child gets sick ... refunds?` shows the medical policy with **Request medical pause** (sent to the owner, needs a doctor's note).
 * Cancelling and switching classes happen automatically. Only full classes and open questions go to the owner.
 * `What's my balance?` then **Pay now**. `Pay October tuition`. `Buy 4 recital tickets`. `Sign photo release`.
 * `Book a trial for Sofia in Saturday 10am Contemporary`, `Can Maya switch to Thursday hip hop?`, `Cancel next week's class`, or any question. Each request shows up in the owner thread with **Approve** and **Decline** buttons (or `Open requests`, `Reply to Patel: ...`), and the parent gets a confirmation card with class, date, time and amount.

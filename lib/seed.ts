@@ -1,22 +1,9 @@
 import { DB, Attendance, Klass, Student } from "./types";
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-export const SEED_VERSION = 3;
-export const DRESS_CODE: Record<string, string> = {
-  "Ballet": "Black leotard, pink tights, pink ballet slippers, hair in a bun",
-  "Tiny Tots Ballet": "Any color leotard, pink tights, pink ballet slippers, hair pulled back",
-  "Creative Movement": "Comfortable leotard or fitted tee and leggings, bare feet or ballet slippers",
-  "Hip Hop": "Loose comfortable clothes, clean sneakers worn only indoors, no jeans",
-  "Jazz": "Black leotard or fitted top, black jazz pants or tights, tan jazz shoes",
-  "Contemporary": "Fitted top and leggings or a leotard, bare feet or foot undies",
-};
-export const ABSENCE_POLICY = [
-  "Tuition is monthly and covers four classes, so each class is worth a quarter of monthly tuition.",
-  "Tell us at least 24 hours before class and the missed class is credited to your account automatically.",
-  "Less than 24 hours notice gets no credit, but your dancer can take a free makeup class within 30 days.",
-  "To stop classes for good, give notice before the 1st of the month and next month is not billed.",
-];
-export const TRIAL_FEE_CENTS = 1500;
+export const SEED_VERSION = 4;
+export { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS } from "./policy";
+import { SPECIALTY_CLASSES } from "./policy";
 
 export function seed(): DB {
   const now = new Date().toISOString();
@@ -39,6 +26,8 @@ export function seed(): DB {
     { id: "s_kai", name: "Kai Nguyen", familyId: "fam_nguyen", classId: "c_contemp_sat", rateCents: 8000, startDate: "2026-09-05", active: true, size: "Adult S", age: 14 },
     { id: "s_bella", name: "Bella Rossi", familyId: "fam_rossi", classId: "c_ballet_mon", rateCents: 9000, startDate: "2026-09-01", active: true, size: "Child S", age: 9 },
     { id: "s_zoe", name: "Zoe Rossi", familyId: "fam_rossi", classId: "c_jazz_wed", rateCents: 6000, startDate: "2026-09-01", active: true, size: "Child L", age: 13 },
+    { id: "s_isabella", name: "Isabella Garcia", familyId: "fam_garcia", classId: "c_contemp_sat", rateCents: 8000, startDate: "2025-09-06", active: true, size: "Adult S", age: 14 },
+    { id: "s_camila", name: "Camila Garcia", familyId: "fam_garcia", classId: "c_jazz_wed", rateCents: 6000, startDate: "2025-09-03", active: true, size: "Child L", age: 12 },
   ];
   // October attendance history for every class meeting up to yesterday
   const attendance: Attendance[] = []; let a = 0;
@@ -59,8 +48,9 @@ export function seed(): DB {
       { id: "fam_johnson", name: "Johnson", parentName: "Keisha Johnson", phone: "(555) 442 1187", email: "keisha.j@example.com", cardLast4: "0005" },
       { id: "fam_nguyen", name: "Nguyen", parentName: "Thao Nguyen", phone: "(555) 610 2290", email: "thao.nguyen@example.com", cardLast4: "3220" },
       { id: "fam_rossi", name: "Rossi", parentName: "Marco Rossi", phone: "(555) 774 5531", email: "m.rossi@example.com", cardLast4: "7788" },
+      { id: "fam_garcia", name: "Garcia", parentName: "Elena Garcia", phone: "(555) 903 1145", email: "elena.garcia@example.com", cardLast4: "6011", plan: "monthly" },
     ],
-    classes, students,
+    classes: [...classes, ...SPECIALTY_CLASSES.map(c => ({ ...c, specialty: true }))], students,
     instructors: [
       { id: "i_sarah", name: "Sarah Kim", ratePerClassCents: 4500, backgroundCheck: "2026-03-12", checkOk: true },
       { id: "i_elena", name: "Elena Petrova", ratePerClassCents: 5500, backgroundCheck: "2025-11-02", checkOk: true },
@@ -87,7 +77,7 @@ export function seed(): DB {
     attendance,
     messages: [
       { id: "m1", thread: "owner", from: "system", ts: now, text: "Welcome to the Blue Ocean owner thread. Everything you run, front desk and back office, happens right here. Tap a suggestion below or type help." },
-      ...["lopez", "chen", "patel", "johnson", "nguyen", "rossi"].map((f, i) => ({ id: `mp${i}`, thread: `parent:fam_${f}`, from: "system" as const, ts: now, text: "Hi! This is your Blue Ocean family thread. Ask about your balance, pay tuition, book a trial, ask a question, or cancel or switch a class." })),
+      ...["lopez", "chen", "patel", "johnson", "nguyen", "rossi", "garcia"].map((f, i) => ({ id: `mp${i}`, thread: `parent:fam_${f}`, from: "system" as const, ts: now, text: "Hi! This is your Blue Ocean family thread. Ask about your balance, pay tuition, book a trial, ask a question, or cancel or switch a class." })),
     ],
     processor: { name: "Stripe", ratePct: 2.9, fixedCents: 30, external: false },
     pending: {},
@@ -114,7 +104,16 @@ export function seed(): DB {
       { id: "mx_slippers", name: "Pink ballet slippers", priceCents: 2400, stock: 7, sold: 5, sizes: { "Child 10": 2, "Child 12": 3, "Child 1": 2 } },
       { id: "mx_scrunchie", name: "Recital scrunchie", priceCents: 800, stock: 0, sold: 25 },
     ],
-    sales: [],
+    sales: [
+      { id: "h0", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_isabella", size: "Adult S", amountCents: 1200, date: `${new Date().getFullYear()}-01-14` },
+      { id: "h1", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_isabella", size: "Adult S", amountCents: 1200, date: `${new Date().getFullYear()}-03-02` },
+      { id: "h2", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_isabella", size: "Adult S", amountCents: 1200, date: `${new Date().getFullYear()}-05-10` },
+      { id: "h3", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_isabella", size: "Adult S", amountCents: 1200, date: `${new Date().getFullYear()}-09-08` },
+      { id: "h4", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_camila", size: "Child L", amountCents: 1200, date: `${new Date().getFullYear()}-01-14` },
+      { id: "h5", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_camila", size: "Child M", amountCents: 1200, date: `${new Date().getFullYear()}-02-20` },
+      { id: "h6", itemId: "mx_tights", qty: 1, familyId: "fam_garcia", studentId: "s_camila", size: "Child L", amountCents: 1200, date: `${new Date().getFullYear()}-09-08` },
+      { id: "h9", itemId: "mx_leotard", qty: 1, familyId: "fam_garcia", studentId: "s_camila", size: "Child L", amountCents: 2800, date: `${new Date().getFullYear()}-09-08` }
+    ],
     recital: {
       name: "Spring Showcase", date: "2027-05-15", venue: "Riverside Theater", seats: 320, ticketCents: 2000, sold: 186, ticketSales: [],
       order: [
@@ -122,7 +121,7 @@ export function seed(): DB {
         { number: "Tiny Tots Teddy Bear Picnic", classId: "c_tots_sat", studentIds: ["s_lily"] },
         { number: "Waltz of the Flowers", classId: "c_ballet_mon", studentIds: ["s_ava", "s_bella"], costumeId: "co_tutu" },
         { number: "Hip Hop Party", classId: "c_hh_tue", studentIds: ["s_dev"], costumeId: "co_jacket" },
-        { number: "All That Jazz", classId: "c_jazz_wed", studentIds: ["s_priya", "s_zoe"], costumeId: "co_jazz" },
+        { number: "All That Jazz", classId: "c_jazz_wed", studentIds: ["s_priya", "s_zoe", "s_camila"], costumeId: "co_jazz" },
         { number: "Contemporary Solo", classId: "c_contemp_sat", studentIds: ["s_kai"] },
       ],
       vendors: [
@@ -140,7 +139,7 @@ export function seed(): DB {
       { id: "w_medical", name: "Medical info form", required: true },
     ],
     signatures: [
-      ...["fam_lopez", "fam_chen", "fam_patel", "fam_johnson", "fam_nguyen", "fam_rossi"].map(f => ({ familyId: f, waiverId: "w_liability", date: "2026-08-28" })),
+      ...["fam_lopez", "fam_chen", "fam_patel", "fam_johnson", "fam_nguyen", "fam_rossi", "fam_garcia"].map(f => ({ familyId: f, waiverId: "w_liability", date: "2026-08-28" })),
       ...["fam_lopez", "fam_johnson", "fam_nguyen"].map(f => ({ familyId: f, waiverId: "w_photo", date: "2026-09-02" })),
       ...["fam_lopez", "fam_patel", "fam_johnson", "fam_rossi"].map(f => ({ familyId: f, waiverId: "w_medical", date: "2026-09-02" })),
     ],

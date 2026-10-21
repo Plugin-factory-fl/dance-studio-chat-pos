@@ -1,5 +1,6 @@
 import { DB, Card, Message, Family, Student, Klass, Row, Button, Request } from "./types";
-import { today, DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS } from "./seed";
+import { today } from "./seed";
+import { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS, COMPETITION_TEAMS, SPECIALTY_CLASSES, PRIVATE_WORK, RECITAL_INFO, PAYMENT_PLANS, MEDICAL_POLICY } from "./policy";
 
 export const balTxt = (b: number) => b < 0 ? `${money(-b)} credit` : money(b);
 export const money = (c: number) => (c < 0 ? "minus " : "") + "$" + (Math.abs(c) / 100).toFixed(2);
@@ -396,11 +397,22 @@ function resolveRequest(db: DB, rid: string, ok: boolean) {
   if (!ok) { post(db, parentThread(f), `The studio could not approve your request: ${r.text}. Reply here if you would like other options.`, { kind: "request", title: "Request declined", badge: { text: "Declined", tone: "bad" }, rows: [["Request", r.text]] }); return post(db, "owner", `Declined ${rid}. The ${f.name} family was told in their thread.`); }
   let card: Card;
   if (r.type === "switch" && s && r.toClassId) {
-    const from = kls(db, s.classId), to = kls(db, r.toClassId); s.classId = to.id;
+    const from = kls(db, s.classId), to = kls(db, r.toClassId); moveClass(db, s, to.id);
     card = { kind: "confirm", title: "Class switch confirmed", badge: { text: "Approved", tone: "good" }, rows: [["Dancer", s.name], ["From", className(from)], ["To", to.style], ["Day and time", `${to.day} ${to.time}`], ["First class", fmtDate(nextDate(to.day))], ["Amount", `${money(s.rateCents)} per month, no change`]] };
   } else if (r.type === "cancel" && s) {
     const k = kls(db, s.classId);
     card = { kind: "confirm", title: "Class cancellation confirmed", badge: { text: "Approved", tone: "good" }, rows: [["Dancer", s.name], ["Class", k.style], ["Date", fmtDate(r.date!)], ["Time", `${k.time} · ${k.room}`], ["Amount", "No charge, excused absence"]] };
+  } else if (r.type === "audition") {
+    const t = COMPETITION_TEAMS.find(x => x.id === r.teamId)!;
+    card = { kind: "confirm", title: `${t.name} audition scheduled`, badge: { text: "Approved", tone: "good" }, rows: [["Dancer", s?.name ?? "Your dancer"], ["Team", t.name], ["Date", fmtDate(r.date!)], ["Time", "1pm · Studio A"], ["Amount", "Free audition"]] };
+  } else if (r.type === "private") {
+    card = { kind: "confirm", title: "Private work approved", badge: { text: "Approved", tone: "good" }, rows: [["Dancer", s?.name ?? "Your dancer"], ["Choreographer", "Elena Petrova"], ["First lesson", `${fmtDate(nextDate("Sunday"))} · 2pm · Studio B`], ["Amount", "$75.00 per private lesson, choreography fee billed at first lesson"]] };
+  } else if (r.type === "medical" && s) {
+    s.paused = true;
+    card = { kind: "confirm", title: "Medical pause approved", badge: { text: "Paused", tone: "good" }, rows: [["Dancer", s.name], ["From", fmtDate(today())], ["Until", "Up to 8 weeks, spot held"], ["Amount", "No tuition billed while paused"]] };
+  } else if (r.type === "specialty" && s) {
+    const c = kls(db, r.toClassId!); (s.extraClassIds ??= []).push(c.id); charge(db, f, c.priceCents, `${monthName()} ${c.style} for ${first(s)}`, "owner");
+    card = { kind: "confirm", title: `Enrolled in ${c.style}`, badge: { text: "Approved", tone: "good" }, rows: [["Dancer", s.name], ["Class", c.style], ["Date", `Starts ${fmtDate(nextDate(c.day))}`], ["Time", `${c.day} ${c.time}`], ["Amount", `${money(c.priceCents)} per month`]] };
   } else {
     const k = kls(db, r.toClassId!), feeC = 1500; charge(db, f, feeC, `Trial class for ${r.studentName}`, "owner");
     card = { kind: "confirm", title: "Trial class booked", badge: { text: "Approved", tone: "good" }, rows: [["Dancer", r.studentName!], ["Class", k.style], ["Date", fmtDate(r.date!)], ["Time", `${k.time} · ${k.room}`], ["Instructor", inst(db, k.instructorId).name], ["Amount", money(feeC)]] };
@@ -425,7 +437,7 @@ function execPending(db: DB, T: string, p: { action: string; data: any }) {
     return post(db, parentThread(f), `${fn} is enrolled in ${className(k)}.${bal > 0 ? ` You owe ${money(bal)}.` : ""}`, { kind: "confirm", title: "Enrollment confirmed", badge: { text: "Enrolled", tone: "good" }, rows: [["Dancer", s.name], ["Class", k.style], ["Date", `Starts ${fmtDate(d.start)}`], ["Time", `${k.day} ${k.time} · ${k.room}`], ["Amount", `${money(d.rate)} per month`]] }, bal > 0 ? payBtn(db, f) : undefined);
   }
   if (p.action === "tuition") {
-    const act = db.students.filter(s => s.active); let total = 0;
+    const act = db.students.filter(s => s.active && !s.paused); let total = 0;
     for (const s of act) { charge(db, fam(db, s.familyId), s.rateCents, `${p.data.month} tuition for ${first(s)}`, T); total += s.rateCents; }
     for (const f of db.families) if (act.some(s => s.familyId === f.id)) post(db, parentThread(f), `${p.data.month} tuition is posted. Your balance is ${money(balance(db, f.id))}.`, balanceCard(db, f), payBtn(db, f));
     return post(db, T, `Posted ${p.data.month} tuition: ${act.length} charges, ${money(total)} total. Each family was notified in their thread.`, { kind: "report", title: `${p.data.month} tuition posted`, badge: { text: "Posted", tone: "good" }, rows: [["Charges", String(act.length)], ["Total billed", money(total)], ["Outstanding now", money(db.families.reduce((s, f) => s + Math.max(0, balance(db, f.id)), 0)), "warn"]] });
@@ -464,7 +476,7 @@ function execPending(db: DB, T: string, p: { action: string; data: any }) {
 const WORDNUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, a: 1, next: 1 };
 function countIn(n: string) { const m = n.match(/\b(\d+|one|two|three|four|five|six)\s+(?:more\s+)?(?:classes|class|sessions|lessons|weeks)/); return m ? (parseInt(m[1]) || WORDNUM[m[1]] || 1) : 0; }
 function ageIn(n: string) { const m = n.match(/\b(\d{1,2})\s*(?:years?|yrs?|yo|year old)\b/) ?? n.match(/\bage(?:d|s)?\s*(\d{1,2})\b/) ?? n.match(/\b(?:shes|hes|she is|he is|is)\s+(\d{1,2})\b/); return m ? parseInt(m[1]) : undefined; }
-const spots = (db: DB, k: Klass) => k.capacity - db.students.filter(s => s.classId === k.id && s.active).length;
+const spots = (db: DB, k: Klass) => k.capacity - db.students.filter(s => (s.classId === k.id || (s.extraClassIds ?? []).includes(k.id)) && s.active).length;
 const ages = (k: Klass) => `ages ${k.ageMin} to ${k.ageMax}`;
 function classList(db: DB, T: string, age: number | undefined, trial: boolean, who = "Your dancer") {
   const list = db.classes.filter(k => age === undefined || (age >= k.ageMin && age <= k.ageMax));
@@ -495,7 +507,8 @@ function dancewear(db: DB, f: Family, T: string, raw: string) {
     const lo = raw.toLowerCase(), item = db.merch.find(i => lo.includes(i.id)), size = item && Object.keys(item.sizes ?? {}).sort((a, b) => b.length - a.length).find(z => lo.includes(z.toLowerCase()));
     if (!item || !item.sizes || !size || item.sizes[size] <= 0) return post(db, T, "Sorry, that size just sold out.");
     item.sizes[size]--; item.stock--; item.sold++;
-    db.sales.push({ id: nid(db, "x"), itemId: item.id, qty: 1, familyId: f.id, amountCents: item.priceCents, date: today() });
+    const buyer = db.students.find(x => x.familyId === f.id && x.size === size);
+    db.sales.push({ id: nid(db, "x"), itemId: item.id, qty: 1, familyId: f.id, studentId: buyer?.id, size, amountCents: item.priceCents, date: today() });
     charge(db, f, item.priceCents, `${item.name} ${size}`, T);
     const card: Card = { kind: "payment", title: "Dancewear order", badge: { text: "Ready at front desk", tone: "good" }, rows: [["Item", item.name], ["Size", size], ["Amount", money(item.priceCents)], ["Charged to", `${f.name} family account`], ["Balance", balTxt(balance(db, f.id)), "warn"]] };
     post(db, "owner", `${f.parentName} bought ${item.name.toLowerCase()} in ${size} for ${money(item.priceCents)}. Charged to their account, ${item.sizes[size]} left in that size.`, { ...card, kind: "inventory", badge: { text: "Sale logged", tone: "muted" } });
@@ -537,6 +550,109 @@ function cancelSessions(db: DB, f: Family, T: string, raw: string, count: number
   return post(db, T, `All set. ${first(s)} is marked absent${credit ? ` and ${money(credit)} is credited to your account` : ""}.`, card);
 }
 
+
+// Moving a dancer drops future cancellations for the old class and reverses their credit.
+function moveClass(db: DB, s: Student, toId: string) {
+  const old = s.classId, t = today();
+  const stale = db.cancellations.filter(c => c.studentId === s.id && c.classId === old && c.date >= t);
+  const amt = stale.reduce((a, c) => a + c.creditCents, 0);
+  db.cancellations = db.cancellations.filter(c => !stale.includes(c));
+  if (amt) db.ledger.push({ id: nid(db, "l"), familyId: s.familyId, type: "charge", amountCents: amt, description: `Absence credit reversed, ${first(s)} moved out of ${className(kls(db, old))}`, date: t, thread: parentThread(fam(db, s.familyId)) });
+  s.classId = toId; return amt;
+}
+const ALL_SIZES = (s: string) => s;
+function kidsByAges(db: DB, f: Family, n: string) {
+  const kids = db.students.filter(s => s.familyId === f.id);
+  const ages = [...n.matchAll(/\b(\d{1,2})\s*(?:years?|yrs?|yo|year old)/g)].map(m => parseInt(m[1]));
+  const byName = kids.filter(s => has(n, first(s).toLowerCase()));
+  const byAge = kids.filter(s => ages.includes(s.age));
+  return { kids, pick: byName.length ? byName : byAge.length ? byAge : kids, ages, missing: ages.filter(a => !kids.some(k => k.age === a)) };
+}
+function purchaseHistory(db: DB, f: Family, T: string, raw: string) {
+  const n = norm(raw), year = String(new Date().getFullYear());
+  const item = db.merch.find(i => i.name.toLowerCase().split(" ").some(w => w.length > 3 && n.includes(w.replace(/s$/, ""))));
+  const { pick, missing } = kidsByAges(db, f, n);
+  if (!pick.length) return post(db, T, "You do not have any dancers on file yet, so there are no purchases to show.");
+  const sales = db.sales.filter(x => x.familyId === f.id && x.date.startsWith(year) && (!item || x.itemId === item.id));
+  const label = item ? item.name.toLowerCase() : "dancewear";
+  const sections = pick.map(s => { const mine = sales.filter(x => x.studentId === s.id); const q = mine.reduce((a, x) => a + x.qty, 0);
+    return { heading: `${first(s)} · age ${s.age} · ${q} ${item?.id === "mx_tights" ? (q === 1 ? "pair" : "pairs") : (q === 1 ? "item" : "items")}`, rows: [...mine.map(x => [fmtDate(x.date), `${item ? "" : db.merch.find(i => i.id === x.itemId)!.name + " · "}${x.size ?? "one size"} · ${money(x.amountCents)}`] as Row), ["Total", money(mine.reduce((a, x) => a + x.amountCents, 0)), "good"] as Row] as Row[] }; });
+  const totalQ = pick.reduce((a, s) => a + sales.filter(x => x.studentId === s.id).reduce((b, x) => b + x.qty, 0), 0);
+  const totalC = pick.reduce((a, s) => a + sales.filter(x => x.studentId === s.id).reduce((b, x) => b + x.amountCents, 0), 0);
+  const lead = pick.map(s => `${first(s)} ${sales.filter(x => x.studentId === s.id).reduce((b, x) => b + x.qty, 0)}`).join(", ");
+  return post(db, T, `This year you bought ${totalQ} ${item?.id === "mx_tights" ? "pairs of tights" : label} (${lead}), ${money(totalC)} in total.${missing.length ? ` I could not find a dancer age ${missing.join(" or ")} on your account.` : ""}`,
+    { kind: "report", title: `${cap(label)} purchases in ${year}`, subtitle: `${f.name} family`, badge: { text: `${totalQ} total`, tone: "good" }, rows: [], sections, footer: `Family total ${money(totalC)}` });
+}
+function programs(db: DB, f: Family, T: string) {
+  const kids = db.students.filter(s => s.familyId === f.id);
+  const fits = (a: number, b: number) => !kids.length || kids.some(s => s.age >= a && s.age <= b);
+  const who = (a: number, b: number) => kids.filter(s => s.age >= a && s.age <= b).map(first).join(", ");
+  const teams = COMPETITION_TEAMS.filter(t => fits(t.ageMin, t.ageMax)), spec = db.classes.filter(c => c.specialty && fits(c.ageMin, c.ageMax));
+  const sections = [...teams.map(t => ({ heading: `${t.name} · ages ${t.ageMin} to ${t.ageMax}${kids.length ? ` · fits ${who(t.ageMin, t.ageMax)}` : ""}`, rows: [["Requirement", t.requirement], ["Rehearsals", t.rehearsal], ["Team fee", `${money(t.feeCents)} per month`], ["Extra costs", t.extras]] as Row[] })),
+    ...spec.map(c => ({ heading: `${c.style} · ages ${c.ageMin} to ${c.ageMax}${kids.length ? ` · fits ${who(c.ageMin, c.ageMax)}` : ""}`, rows: [["When", `${c.day} ${c.time} · ${inst(db, c.instructorId).name}`], ["Prerequisite", c.prereq ?? "None"], ["Open spots", `${spots(db, c)} of ${c.capacity}`, spots(db, c) > 0 ? "good" : "bad"], ["Price", `${money(c.priceCents)} per month`]] as Row[] }))];
+  const btns: Button[] = [];
+  for (const c of spec) for (const s of (kids.length ? kids.filter(s => s.age >= c.ageMin && s.age <= c.ageMax) : [])) if (spots(db, c) > 0 && !(s.extraClassIds ?? []).includes(c.id)) btns.push({ label: `${c.needsApproval ? "Request" : "Enroll"} ${first(s)} in ${c.style}`, send: `join specialty ${c.id} for ${first(s)}`, tone: c.needsApproval ? undefined : "primary" });
+  for (const t of teams) for (const s of kids.filter(s => s.age >= t.ageMin && s.age <= t.ageMax)) btns.push({ label: t.audition ? `Request audition · ${first(s)} · ${t.name.replace(" Competition Team", "")}` : `Ask for invite · ${first(s)} · ${t.name.replace(" Competition Team", "")}`, send: `request audition ${t.id} for ${first(s)}` });
+  return post(db, T, `${teams.length ? `${teams.length} competition ${teams.length === 1 ? "team" : "teams"}` : "No competition teams"} and ${spec.length} specialty classes fit ${kids.length ? kids.map(s => `${first(s)} (${s.age})`).join(" and ") : "our age groups"}.`,
+    { kind: "roster", title: "Competition teams and specialty classes", subtitle: "Specialty classes add on to regular tuition", rows: [], sections }, btns.slice(0, 8), true);
+}
+function joinSpecialty(db: DB, f: Family, T: string, raw: string) {
+  const id = raw.match(/specialty\s+(\S+)/i)?.[1], c = db.classes.find(x => x.id === id), s = findStudent(db, raw, f.id);
+  if (!c || !s) return post(db, T, "Which class and which dancer?");
+  if (spots(db, c) <= 0) return post(db, T, `${c.style} is full right now.`);
+  if (c.needsApproval) return newRequest(db, f, { type: "specialty", studentId: s.id, toClassId: c.id, text: `Add ${first(s)} to ${className(c)} (needs teacher approval: ${c.prereq})` }, `${c.style} needs teacher approval, so I sent your request to the studio.`, { kind: "request", title: `${c.style} request`, rows: [["Dancer", s.name], ["Class", className(c)], ["Prerequisite", c.prereq ?? "None"], ["Amount", `${money(c.priceCents)} per month once approved`]] });
+  (s.extraClassIds ??= []).push(c.id);
+  charge(db, f, c.priceCents, `${monthName()} ${c.style} for ${first(s)}`, T);
+  const card: Card = { kind: "confirm", title: `Enrolled in ${c.style}`, badge: { text: "Enrolled", tone: "good" }, rows: [["Dancer", s.name], ["Class", `${c.style} · ${c.level}`], ["Date", `Starts ${fmtDate(nextDate(c.day))}`], ["Time", `${c.day} ${c.time} · ${c.room}`], ["Instructor", inst(db, c.instructorId).name], ["Amount", `${money(c.priceCents)} per month, first month posted`]] };
+  post(db, "owner", `${f.parentName} enrolled ${first(s)} in ${className(c)}. ${money(c.priceCents)} posted.`, { ...card, kind: "message", badge: { text: "Done automatically", tone: "muted" } });
+  return post(db, T, `${first(s)} is in! First ${c.style} class is ${fmtDate(nextDate(c.day))}.`, card, payBtn(db, f));
+}
+function auditionRequest(db: DB, f: Family, T: string, raw: string) {
+  const t = COMPETITION_TEAMS.find(x => raw.includes(x.id)) ?? COMPETITION_TEAMS[1], s = findStudent(db, raw, f.id);
+  const date = nextDate("Saturday");
+  return newRequest(db, f, { type: "audition", teamId: t.id, studentId: s?.id, date, text: `${t.audition ? "Audition" : "Invite"} for ${s ? first(s) : "dancer"} (age ${s?.age ?? "unknown"}) for the ${t.name}` }, `Sent! The studio will confirm ${t.audition ? "an audition time" : "the invite"} here.`, { kind: "request", title: `${t.name} ${t.audition ? "audition" : "invite"}`, rows: [["Dancer", s?.name ?? "Your dancer"], ["Team", `${t.name} · ages ${t.ageMin} to ${t.ageMax}`], ["Requirement", t.requirement], ["Proposed date", `${fmtDate(date)} · 1pm`], ["Amount", `${money(t.feeCents)} per month if placed`]] });
+}
+function privateInfo(db: DB, f: Family, T: string) {
+  const kids = db.students.filter(s => s.familyId === f.id);
+  return post(db, T, "Yes! We offer solos, duos and trios, plus private lessons.", { kind: "info", title: "Solos, duos and trios", subtitle: "Pricing", rows: PRIVATE_WORK.rows, footer: PRIVATE_WORK.note },
+    [...(kids.length ? kids : [undefined]).slice(0, 3).map(s => ({ label: `Request a solo${s ? ` for ${first(s)}` : ""}`, send: `request a solo${s ? ` for ${first(s)}` : ""}`, tone: "primary" as const })), { label: "Request a duo or trio", send: "request a duo or trio" }], true);
+}
+function privateRequest(db: DB, f: Family, T: string, raw: string) {
+  const s = findStudent(db, raw, f.id), kind = /duo|trio/i.test(raw) ? "duo or trio" : "solo";
+  return newRequest(db, f, { type: "private", studentId: s?.id, text: `${cap(kind)} for ${s ? first(s) : "dancer"}: needs choreographer and rehearsal schedule` }, `Request sent. The studio will reply here with a choreographer and lesson times.`, { kind: "request", title: `${cap(kind)} request`, rows: [["Dancer", s?.name ?? "Your dancer"], ["Type", cap(kind)], ["Pricing", PRIVATE_WORK.rows.find(r => r[0].toLowerCase() === (kind === "solo" ? "solo" : "duo"))![1]]] });
+}
+function recitalInfo(db: DB, f: Family, T: string) {
+  const r = db.recital, kids = db.students.filter(s => s.familyId === f.id);
+  const inShow = (s: Student) => r.order.filter(o => o.studentIds.includes(s.id)).map(o => o.number);
+  return post(db, T, RECITAL_INFO.everyYear, { kind: "event", title: r.name, subtitle: `${fmtDate(r.date)} · ${r.venue}`, badge: { text: `${r.seats - r.sold} seats left`, tone: "good" }, rows: [["Show date", `${fmtDate(r.date)} · 6pm`], ["Tickets", `${money(r.ticketCents)} each`], ["Costume fee", RECITAL_INFO.costumeFee], ["Rehearsals", RECITAL_INFO.rehearsals.map(fmtDate).join(" · ")], ["Dress rehearsal", RECITAL_INFO.dressRehearsal]],
+    sections: kids.length ? [{ heading: "Your dancers", rows: kids.map(s => [s.name, inShow(s).length ? `In the show · ${inShow(s).join(", ")}` : "Not in a number yet", inShow(s).length ? "good" : "warn"] as Row) }] : undefined, footer: RECITAL_INFO.optOut },
+    [{ label: "Buy 4 tickets", send: "Buy 4 recital tickets", tone: "primary" }]);
+}
+function planInfo(db: DB, f: Family, T: string) {
+  const tuition = db.students.filter(s => s.familyId === f.id && s.active).reduce((a, s) => a + s.rateCents, 0), cur = f.plan ?? "monthly";
+  return post(db, T, `Yes, there are ${PAYMENT_PLANS.length} plans. You are on ${PAYMENT_PLANS.find(p => p.id === cur)!.name.toLowerCase()}.`, { kind: "info", title: "Payment plans", subtitle: tuition ? `Based on your tuition of ${money(tuition)} per month` : undefined, rows: [],
+    sections: PAYMENT_PLANS.map(p => ({ heading: `${p.name}${p.id === cur ? " · current plan" : ""}`, rows: [["How it works", p.desc], ...(tuition ? [["You pay", p.months > 1 ? `${money(Math.round(tuition * p.months * (100 - p.discountPct) / 100))} every ${p.months} months` : `${money(tuition)} per month`] as Row] : []), ...(tuition && p.discountPct ? [["You save", money(Math.round(tuition * p.months * p.discountPct / 100)), "good"] as Row] : [])] })) },
+    PAYMENT_PLANS.filter(p => p.id !== cur).map(p => ({ label: `Switch to ${p.name.toLowerCase()}`, send: `switch plan to ${p.id}` })), true);
+}
+function switchPlan(db: DB, f: Family, T: string, raw: string) {
+  const p = PAYMENT_PLANS.find(x => raw.toLowerCase().includes(x.id)) ?? PAYMENT_PLANS[0], was = PAYMENT_PLANS.find(x => x.id === (f.plan ?? "monthly"))!;
+  f.plan = p.id;
+  const tuition = db.students.filter(s => s.familyId === f.id && s.active).reduce((a, s) => a + s.rateCents, 0);
+  const card: Card = { kind: "confirm", title: "Payment plan updated", badge: { text: "Active", tone: "good" }, rows: [["Family", f.name], ["Old plan", was.name], ["New plan", p.name], ["Details", p.desc], ["Next charge", `${fmtDate(iso(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)))} · ${money(Math.round(tuition * p.months * (100 - p.discountPct) / 100))}`], ["Card", `ending ${f.cardLast4 ?? "on file"}`]] };
+  post(db, "owner", `${f.parentName} switched to ${p.name.toLowerCase()}.`, { ...card, kind: "message", badge: { text: "Done automatically", tone: "muted" } });
+  return post(db, T, `Done. You are now on ${p.name.toLowerCase()}.`, card);
+}
+function medicalInfo(db: DB, f: Family, T: string) {
+  const kids = db.students.filter(s => s.familyId === f.id);
+  return post(db, T, "We are sorry to hear that. Here is how illness and injury work. You will not pay for classes your dancer cannot take once we have a doctor's note.", { kind: "info", title: "Medical, injury and refund policy", rows: MEDICAL_POLICY.map((p, i) => [`${i + 1}`, p] as Row),
+    sections: kids.length ? [{ heading: "If you paused today", rows: kids.map(s => [first(s), `${money(s.rateCents)} per month stops until your dancer returns`] as Row) }] : undefined },
+    (kids.length ? kids : [undefined]).slice(0, 3).map(s => ({ label: `Request medical pause${s ? ` for ${first(s)}` : ""}`, send: `request medical pause${s ? ` for ${first(s)}` : ""}`, tone: "primary" as const })), true);
+}
+function medicalRequest(db: DB, f: Family, T: string, raw: string) {
+  const s = findStudent(db, raw, f.id) ?? db.students.find(x => x.familyId === f.id);
+  return newRequest(db, f, { type: "medical", studentId: s?.id, text: `Medical pause for ${s ? first(s) : "dancer"}, doctor's note needed` }, "Request sent. Please reply here with a photo of the doctor's note. The studio will confirm the pause and any prorated credit.", { kind: "request", title: "Medical pause request", rows: [["Dancer", s?.name ?? "Your dancer"], ["Needed", "Doctor's note"], ["Pause", "Up to 8 weeks, spot held"], ["Tuition", "Not billed while paused once approved"]] });
+}
+
 // ---------- parent ----------
 function newRequest(db: DB, f: Family, r: Omit<Request, "id" | "status" | "familyId">, parentText: string, card: Card) {
   const req: Request = { ...r, id: `R${++db.seq}`, familyId: f.id, status: "open" };
@@ -555,6 +671,17 @@ function parentCmd(db: DB, T: string, raw: string) {
   if (/^keep my classes/.test(n)) return post(db, T, "No problem, nothing was cancelled.");
   if (/^purchase /.test(n)) return dancewear(db, f, T, raw);
   if (/^help|what can/.test(n)) return post(db, T, "Here is what you can ask.", { kind: "info", title: "Your family thread", rows: [["Classes", "What classes are available?  /  Classes for a 5 year old"], ["Dress code", "What does my child need to wear?"], ["Dancewear", "Do you have leotards and tights?"], ["Absences", "My child will miss the next 3 classes"], ["Balance", "What's my balance?"], ["Pay", "Pay October tuition"], ["Trial", "Book a trial for Sofia in Saturday 10am Contemporary"], ["Switch", "Can Maya switch to Thursday hip hop?"], ["Cancel", "Cancel next week's class"], ["Tickets", "Buy 4 recital tickets"], ["Question", "Ask anything, the studio will reply here"]] });
+  if (/^join specialty/.test(n)) return joinSpecialty(db, f, T, raw);
+  if (/^request (an )?audition/.test(n)) return auditionRequest(db, f, T, raw);
+  if (/^request a (solo|duo)/.test(n)) return privateRequest(db, f, T, raw);
+  if (/^switch plan to/.test(n)) return switchPlan(db, f, T, raw);
+  if (/^request (a )?medical pause/.test(n)) return medicalRequest(db, f, T, raw);
+  if (/(how many|purchased|bought|purchase history|have i (bought|purchased)|did i buy)/.test(n) && /tight|leotard|slipper|merch|hoodie|tee|bag|bottle|dancewear|items?/.test(n)) return purchaseHistory(db, f, T, raw);
+  if (/competition|comp team|specialty|speciality|acro|pointe|leaps|turns class|dance team|audition/.test(n)) return programs(db, f, T);
+  if (/\bsolos?\b|\bduos?\b|\btrios?\b|private lesson/.test(n)) return privateInfo(db, f, T);
+  if (/payment plans?|autopay|auto pay|prepay|pay in installments|installment|split (the )?(payment|fees)/.test(n)) return planInfo(db, f, T);
+  if (/sick|ill\b|illness|injur|accident|refund|medical|hurt|doctor/.test(n)) return medicalInfo(db, f, T);
+  if (/recital|showcase|performance|show every year/.test(n) && !/ticket/.test(n)) return recitalInfo(db, f, T);
   if ((/^sign\b/.test(n) || /i agree/.test(n))) {
     const w = db.waivers.find(x => n.includes(x.name.toLowerCase().split(" ")[0])) ?? db.waivers.find(x => !db.signatures.some(s => s.familyId === f.id && s.waiverId === x.id));
     if (!w) return post(db, T, "Everything is signed. Thank you!");
@@ -598,8 +725,8 @@ function parentCmd(db: DB, T: string, raw: string) {
     if (!k || k.id === s.classId) return classList(db, T, s.age, false);
     const from = kls(db, s.classId);
     if (spots(db, k) <= 0) return newRequest(db, f, { type: "switch", studentId: s.id, toClassId: k.id, text: `Switch ${first(s)} from ${className(from)} to ${className(k)} (class is full)` }, `${className(k)} is full, so I asked the studio about a spot for ${first(s)}.`, { kind: "request", title: "Class switch request", rows: [["Dancer", s.name], ["From", className(from)], ["To", className(k)]] });
-    s.classId = k.id;
-    const card: Card = { kind: "confirm", title: "Class switch confirmed", badge: { text: "Done", tone: "good" }, rows: [["Dancer", s.name], ["From", className(from)], ["To", k.style], ["Day and time", `${k.day} ${k.time} · ${k.room}`], ["First class", fmtDate(nextDate(k.day))], ["Amount", `${money(s.rateCents)} per month, no change`]] };
+    const reversed = moveClass(db, s, k.id);
+    const card: Card = { kind: "confirm", title: "Class switch confirmed", badge: { text: "Done", tone: "good" }, rows: [["Dancer", s.name], ["From", className(from)], ["To", k.style], ["Day and time", `${k.day} ${k.time} · ${k.room}`], ["First class", fmtDate(nextDate(k.day))], ["Amount", `${money(s.rateCents)} per month, no change`], ...(reversed ? [["Old class credits", `${money(reversed)} removed, those classes are no longer on the schedule`, "muted"] as Row] : [])] };
     post(db, "owner", `${f.parentName} switched ${first(s)} from ${className(from)} to ${className(k)}. Rosters updated.`, { ...card, kind: "message", badge: { text: "Done automatically", tone: "muted" } });
     return post(db, T, `Done! ${first(s)} is now in ${className(k)}.`, card);
   }
