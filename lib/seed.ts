@@ -1,17 +1,34 @@
 import { DB, Attendance, Klass, Student } from "./types";
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
+export const DRESS_CODE: Record<string, string> = {
+  "Ballet": "Black leotard, pink tights, pink ballet slippers, hair in a bun",
+  "Tiny Tots Ballet": "Any color leotard, pink tights, pink ballet slippers, hair pulled back",
+  "Creative Movement": "Comfortable leotard or fitted tee and leggings, bare feet or ballet slippers",
+  "Hip Hop": "Loose comfortable clothes, clean sneakers worn only indoors, no jeans",
+  "Jazz": "Black leotard or fitted top, black jazz pants or tights, tan jazz shoes",
+  "Contemporary": "Fitted top and leggings or a leotard, bare feet or foot undies",
+};
+export const ABSENCE_POLICY = [
+  "Tuition is monthly and covers four classes, so each class is worth a quarter of monthly tuition.",
+  "Tell us at least 24 hours before class and the missed class is credited to your account automatically.",
+  "Less than 24 hours notice gets no credit, but your dancer can take a free makeup class within 30 days.",
+  "To stop classes for good, give notice before the 1st of the month and next month is not billed.",
+];
+export const TRIAL_FEE_CENTS = 1500;
 
 export function seed(): DB {
   const now = new Date().toISOString();
   const classes: Klass[] = [
-    { id: "c_hh_tue", style: "Hip Hop", day: "Tuesday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A" },
-    { id: "c_hh_thu", style: "Hip Hop", day: "Thursday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A" },
-    { id: "c_ballet_mon", style: "Ballet", day: "Monday", time: "5pm", instructorId: "i_elena", hours: 1.5, room: "Studio B" },
-    { id: "c_jazz_wed", style: "Jazz", day: "Wednesday", time: "6pm", instructorId: "i_marcus", hours: 1, room: "Studio A" },
-    { id: "c_contemp_sat", style: "Contemporary", day: "Saturday", time: "10am", instructorId: "i_tasha", hours: 1.5, room: "Studio B" },
-    { id: "c_tots_sat", style: "Tiny Tots", day: "Saturday", time: "9am", instructorId: "i_tasha", hours: 0.75, room: "Studio A" },
+    { id: "c_hh_tue", style: "Hip Hop", day: "Tuesday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A", ageMin: 7, ageMax: 12, level: "Beginner", capacity: 12, priceCents: 8500 },
+    { id: "c_hh_thu", style: "Hip Hop", day: "Thursday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A", ageMin: 8, ageMax: 14, level: "Intermediate", capacity: 12, priceCents: 8500 },
+    { id: "c_ballet_mon", style: "Ballet", day: "Monday", time: "5pm", instructorId: "i_elena", hours: 1.5, room: "Studio B", ageMin: 7, ageMax: 12, level: "Level 1", capacity: 10, priceCents: 9000 },
+    { id: "c_jazz_wed", style: "Jazz", day: "Wednesday", time: "6pm", instructorId: "i_marcus", hours: 1, room: "Studio A", ageMin: 9, ageMax: 14, level: "Beginner", capacity: 12, priceCents: 6000 },
+    { id: "c_contemp_sat", style: "Contemporary", day: "Saturday", time: "10am", instructorId: "i_tasha", hours: 1.5, room: "Studio B", ageMin: 12, ageMax: 18, level: "Intermediate", capacity: 10, priceCents: 8000 },
+    { id: "c_tots_sat", style: "Tiny Tots Ballet", day: "Saturday", time: "9am", instructorId: "i_tasha", hours: 0.75, room: "Studio A", ageMin: 3, ageMax: 5, level: "Intro", capacity: 8, priceCents: 5500 },
+    { id: "c_creative_fri", style: "Creative Movement", day: "Friday", time: "4pm", instructorId: "i_elena", hours: 0.75, room: "Studio B", ageMin: 4, ageMax: 6, level: "Intro", capacity: 10, priceCents: 5500 },
+    { id: "c_ballet_thu", style: "Ballet", day: "Thursday", time: "5pm", instructorId: "i_elena", hours: 1, room: "Studio B", ageMin: 5, ageMax: 8, level: "Pre Ballet", capacity: 10, priceCents: 7500 },
   ];
   const students: Student[] = [
     { id: "s_maya", name: "Maya Lopez", familyId: "fam_lopez", classId: "c_hh_tue", rateCents: 8500, startDate: "2026-09-01", active: true, size: "Child M", age: 10 },
@@ -92,6 +109,9 @@ export function seed(): DB {
       { id: "mx_tee", name: "Logo tee", priceCents: 2200, stock: 31, sold: 14 },
       { id: "mx_bag", name: "Dance bag", priceCents: 3500, stock: 4, sold: 9 },
       { id: "mx_bottle", name: "Water bottle", priceCents: 1500, stock: 22, sold: 11 },
+      { id: "mx_leotard", name: "Black leotard", priceCents: 2800, stock: 11, sold: 6, sizes: { "Child XS": 2, "Child S": 4, "Child M": 3, "Child L": 0, "Adult S": 2 } },
+      { id: "mx_tights", name: "Pink tights", priceCents: 1200, stock: 17, sold: 10, sizes: { "Child S": 6, "Child M": 5, "Child L": 4, "Adult S": 2 } },
+      { id: "mx_slippers", name: "Pink ballet slippers", priceCents: 2400, stock: 7, sold: 5, sizes: { "Child 10": 2, "Child 12": 3, "Child 1": 2 } },
       { id: "mx_scrunchie", name: "Recital scrunchie", priceCents: 800, stock: 0, sold: 25 },
     ],
     sales: [],
@@ -125,6 +145,7 @@ export function seed(): DB {
       ...["fam_lopez", "fam_patel", "fam_johnson", "fam_rossi"].map(f => ({ familyId: f, waiverId: "w_medical", date: "2026-09-02" })),
     ],
     requests: [],
+    cancellations: [],
     seq: 1000,
   };
 }

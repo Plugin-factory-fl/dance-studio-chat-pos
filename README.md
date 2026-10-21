@@ -39,7 +39,14 @@ Back end (same owner thread):
 9. Recital: `Recital status`, `Running order`, `Mark videographer booked`, `Add Maya to the opening number`, `Send costume payment links to all families in the spring show`.
 10. Waivers: `Who still needs to sign the photo release?` then **Send photo release to missing families**, `Compliance overview`.
 
-Parent threads:
+Parent threads (all self service, finished in chat with a notice to the owner thread):
+* `what classes are avilable?` lists every class with day, time, ages, level, instructor, open spots and price.
+* `My child is 5 years old, what classes are avilable for that age group?` filters by age.
+* `I want to enroll my kid for a trial class, she's 8 years old. What's available?` then tap **Book trial** to book it with the $15 trial fee.
+* `What does my child need to wear to class?` shows the dress code by style and for your dancers.
+* `Are there leotards and tights available or do I need to buy those?` shows sizes in stock with **Buy** buttons charged to the family account.
+* `My child is going to miss the next 3 classes, do I need to pay for those 3 classes or can I cancel?` explains the absence policy (credit of a quarter of monthly tuition per class when reported 24 hours ahead) with **Cancel those 3 classes**.
+* Cancelling and switching classes happen automatically. Only full classes and open questions go to the owner.
 * `What's my balance?` then **Pay now**. `Pay October tuition`. `Buy 4 recital tickets`. `Sign photo release`.
 * `Book a trial for Sofia in Saturday 10am Contemporary`, `Can Maya switch to Thursday hip hop?`, `Cancel next week's class`, or any question. Each request shows up in the owner thread with **Approve** and **Decline** buttons (or `Open requests`, `Reply to Patel: ...`), and the parent gets a confirmation card with class, date, time and amount.
 
