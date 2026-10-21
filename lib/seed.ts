@@ -1,7 +1,7 @@
 import { DB, Attendance, Klass, Student } from "./types";
 export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 export { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS } from "./policy";
 import { SPECIALTY_CLASSES } from "./policy";
 
@@ -101,7 +101,9 @@ export function seed(): DB {
       { id: "mx_bottle", name: "Water bottle", priceCents: 1500, stock: 22, sold: 11 },
       { id: "mx_leotard", name: "Black leotard", priceCents: 2800, stock: 11, sold: 6, sizes: { "Child XS": 2, "Child S": 4, "Child M": 3, "Child L": 0, "Adult S": 2 } },
       { id: "mx_tights", name: "Pink tights", priceCents: 1200, stock: 17, sold: 10, sizes: { "Child S": 6, "Child M": 5, "Child L": 4, "Adult S": 2 } },
-      { id: "mx_slippers", name: "Pink ballet slippers", priceCents: 2400, stock: 7, sold: 5, sizes: { "Child 10": 2, "Child 12": 3, "Child 1": 2 } },
+      { id: "mx_slippers", name: "Pink ballet slippers", priceCents: 2400, stock: 7, sold: 5, sizes: { "Child S": 2, "Child M": 3, "Child L": 2 } },
+      { id: "mx_tap", name: "Black tap shoes", priceCents: 4200, stock: 8, sold: 3, sizes: { "Child S": 3, "Child M": 3, "Child L": 2 } },
+      { id: "mx_jazz", name: "Tan jazz shoes", priceCents: 3600, stock: 6, sold: 4, sizes: { "Child S": 1, "Child M": 3, "Child L": 2 } },
       { id: "mx_scrunchie", name: "Recital scrunchie", priceCents: 800, stock: 0, sold: 25 },
     ],
     sales: [
@@ -144,6 +146,8 @@ export function seed(): DB {
       ...["fam_lopez", "fam_patel", "fam_johnson", "fam_rossi"].map(f => ({ familyId: f, waiverId: "w_medical", date: "2026-09-02" })),
     ],
     requests: [],
+    inventoryLog: [],
+    lastRead: {},
     cancellations: [],
     seq: 1000,
   };

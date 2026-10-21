@@ -1,5 +1,6 @@
 import { DB, Card, Message, Family, Student, Klass, Row, Button, Request } from "./types";
 import { today } from "./seed";
+import { showInventory } from "./inventory";
 import { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS, COMPETITION_TEAMS, SPECIALTY_CLASSES, PRIVATE_WORK, RECITAL_INFO, PAYMENT_PLANS, MEDICAL_POLICY } from "./policy";
 
 export const balTxt = (b: number) => b < 0 ? `${money(-b)} credit` : money(b);
@@ -10,7 +11,7 @@ const cap = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
 const monthName = () => new Date().toLocaleString("en-US", { month: "long" });
 export const fmtDate = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); if (!d) return iso; return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: y !== new Date().getFullYear() ? "numeric" : undefined }); };
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const nid = (db: DB, p: string) => `${p}${++db.seq}`;
+export const nid = (db: DB, p: string) => `${p}${++db.seq}`;
 const amount = (t: string) => { const m = t.match(/\$\s?(\d+(?:,\d{3})*(?:\.\d\d)?)/); return m ? Math.round(parseFloat(m[1].replace(/,/g, "")) * 100) : undefined; };
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const nextDate = (day: string, weeksAhead = 0) => { const d = new Date(); const t = DAYS.indexOf(day.toLowerCase()); let add = (t - d.getDay() + 7) % 7; if (add === 0) add = 7; d.setDate(d.getDate() + add + 7 * weeksAhead); return iso(d); };
@@ -27,7 +28,7 @@ const stu = (db: DB, id: string) => db.students.find(s => s.id === id)!;
 export const parentThread = (f: Family) => `parent:${f.id}`;
 const first = (s: Student) => s.name.split(" ")[0];
 
-function post(db: DB, thread: string, text: string, card?: Card, buttons?: Button[], sticky = false) {
+export function post(db: DB, thread: string, text: string, card?: Card, buttons?: Button[], sticky = false) {
   const m: Message = { id: nid(db, "m"), thread, from: "system", text, card, buttons, sticky, ts: new Date().toISOString() };
   db.messages.push(m); return m;
 }
@@ -175,6 +176,7 @@ function ownerCmd(db: DB, raw: string) {
   }
 
   // back office
+  if (/^(show |full |check )?(inventory|stock check|all stock|what s in stock|stock levels)/.test(n)) return showInventory(db);
   if (/costume (payment|fee)|payment links?/.test(n)) return costumeLinks(db);
   if (/size chart|costume sizes/.test(n)) return sizeChart(db);
   if (/^order\b/.test(n)) return orderCostume(db, t);
@@ -738,4 +740,11 @@ export function handle(db: DB, thread: string, text: string) {
   if (!text.trim()) return;
   db.messages.push({ id: nid(db, "m"), thread, from: thread === "owner" ? "owner" : "parent", text: text.trim(), ts: new Date().toISOString() });
   if (thread === "owner") ownerCmd(db, text); else parentCmd(db, thread, text);
+}
+
+/** Studio replies directly in a parent thread from the admin inbox. */
+export function studioReply(db: DB, familyId: string, text: string) {
+  const f = fam(db, familyId); if (!text.trim()) return;
+  db.messages.push({ id: nid(db, "m"), thread: parentThread(f), from: "owner", text: text.trim(), ts: new Date().toISOString() });
+  db.requests.filter(r => r.familyId === f.id && r.type === "question" && r.status === "open").forEach(r => { r.status = "approved"; clearButtons(db, r); });
 }

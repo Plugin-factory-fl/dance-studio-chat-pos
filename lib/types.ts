@@ -1,10 +1,11 @@
 export type Tone = "good" | "warn" | "bad" | "muted";
 export type Row = [string, string] | [string, string, Tone];
 export interface Card {
-  kind: "student" | "payment" | "balance" | "report" | "roster" | "info" | "payrun" | "inventory" | "event" | "compliance" | "message" | "request" | "confirm";
+  kind: "student" | "payment" | "balance" | "report" | "roster" | "info" | "payrun" | "inventory" | "event" | "compliance" | "message" | "request" | "confirm" | "review";
   title: string; subtitle?: string; badge?: { text: string; tone: Tone };
   rows: Row[]; sections?: { heading: string; rows: Row[] }[];
   progress?: { label: string; value: number; max: number }; footer?: string;
+  review?: { key: string; label: string; category: string; system: number; detected: number }[]; simulated?: boolean; applied?: boolean; image?: string; notes?: string[];
 }
 export interface Button { label: string; send: string; tone?: "primary" | "ghost" }
 export interface Message { id: string; thread: string; from: "owner" | "parent" | "system"; text: string; card?: Card; buttons?: Button[]; sticky?: boolean; ts: string }
@@ -31,5 +32,7 @@ export interface DB {
   ledger: LedgerEntry[]; attendance: Attendance[]; messages: Message[]; processor: Processor; pending: Record<string, Pending | undefined>;
   costumes: Costume[]; assignments: CostumeAssignment[]; merch: MerchItem[]; sales: Sale[]; recital: Recital;
   cancellations: { id: string; studentId: string; classId: string; date: string; creditCents: number }[];
+  inventoryLog: { id: string; date: string; source: string; changes: { key: string; label: string; from: number; to: number }[] }[];
+  lastRead: Record<string, string>;
   waivers: Waiver[]; signatures: Signature[]; requests: Request[]; seq: number; version: number;
 }

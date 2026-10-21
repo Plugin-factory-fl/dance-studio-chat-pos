@@ -21,7 +21,20 @@ Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
 * `lib/types.ts`: families, students, classes, ledger (charges and payments), attendance, messages, processor.
 * `lib/engine.ts`: command parser and actions. Both threads write to the same family accounts, and charges, enrollments and payments are posted into both threads.
 * `lib/seed.ts`: demo data: 6 families, 8 dancers, 6 classes, 4 instructors with per class rates, costumes by size, studio store items, the Spring Showcase (tickets, running order, vendors) and waivers.
-* Payments run through a stub processor. The default is S## Editing policies
+* Payments run through a stub processor. The default is S## Pages
+
+* `/` is the parent experience: one family thread with a family picker for the demo, plus an **Admin** button.
+* `/admin` is the studio inbox in three columns: a searchable list of every family thread (preview, request or unread badge, balance dot) with the **Owner assistant** pinned on top; the selected thread, where the owner can reply as the studio and approve or decline requests inline; and a details column with contact info, balance, plan, card, waivers and one section per child (classes, attendance this term, costume size, recital numbers, merch purchases, medical status).
+
+## Photo inventory count
+
+In the Owner assistant tap **Count inventory from photo**. Take or upload a photo, or try one of the sample photos in `public/samples/`.
+
+* **Demo mode** (default, no key) returns simulated counts for the sample photos and is clearly labeled as simulated.
+* **AI mode**: turn demo mode off and paste your own OpenAI API key in the panel settings. The key is kept only in your browser's localStorage and is sent only to OpenAI. The photo goes to `gpt-4o-mini` with a JSON prompt that maps to the inventory catalog (leotards, tights, ballet, tap and jazz shoes, tutus, costumes, studio store) by size and color.
+* The review card shows photo counts beside system counts with the difference. Edit any count, then tap **Update inventory**; changes are applied and written to the inventory log. Type `Inventory` to see every category, size and count with low stock flags.
+
+## Editing policies
 
 Every policy and offering parents see is a placeholder in **`lib/policy.ts`**: dress code, absence policy, trial fee, competition teams, specialty classes, solo and duo pricing, recital details, payment plans and the medical and refund policy. Edit that one file, rebuild, and the chat answers update. Use Reset demo to reload specialty classes into saved data.
 
