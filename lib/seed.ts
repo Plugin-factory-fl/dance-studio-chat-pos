@@ -1,14 +1,15 @@
 import { DB, Attendance, Klass, Student } from "./types";
-export const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+import { today } from "./clock";
+export { today };
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 export { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS } from "./policy";
 import { SPECIALTY_CLASSES } from "./policy";
 
 export function seed(): DB {
   const now = new Date().toISOString();
   const classes: Klass[] = [
-    { id: "c_hh_tue", style: "Hip Hop", day: "Tuesday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A", ageMin: 7, ageMax: 12, level: "Beginner", capacity: 12, priceCents: 8500 },
+    { id: "c_hh_tue", style: "Hip Hop", day: "Tuesday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A", ageMin: 7, ageMax: 12, level: "Beginner", capacity: 2, priceCents: 8500 },
     { id: "c_hh_thu", style: "Hip Hop", day: "Thursday", time: "4pm", instructorId: "i_sarah", hours: 1, room: "Studio A", ageMin: 8, ageMax: 14, level: "Intermediate", capacity: 12, priceCents: 8500 },
     { id: "c_ballet_mon", style: "Ballet", day: "Monday", time: "5pm", instructorId: "i_elena", hours: 1.5, room: "Studio B", ageMin: 7, ageMax: 12, level: "Level 1", capacity: 10, priceCents: 9000 },
     { id: "c_jazz_wed", style: "Jazz", day: "Wednesday", time: "6pm", instructorId: "i_marcus", hours: 1, room: "Studio A", ageMin: 9, ageMax: 14, level: "Beginner", capacity: 12, priceCents: 6000 },
@@ -18,11 +19,11 @@ export function seed(): DB {
     { id: "c_ballet_thu", style: "Ballet", day: "Thursday", time: "5pm", instructorId: "i_elena", hours: 1, room: "Studio B", ageMin: 5, ageMax: 8, level: "Pre Ballet", capacity: 10, priceCents: 7500 },
   ];
   const students: Student[] = [
-    { id: "s_maya", name: "Maya Lopez", familyId: "fam_lopez", classId: "c_hh_tue", rateCents: 8500, startDate: "2026-09-01", active: true, size: "Child M", age: 10 },
+    { id: "s_maya", name: "Maya Lopez", familyId: "fam_lopez", classId: "c_hh_tue", rateCents: 8500, startDate: "2026-09-01", active: true, size: "Child M", age: 10, birthdate: "2016-03-14", allergies: "Peanuts (carries EpiPen)" },
     { id: "s_priya", name: "Priya Patel", familyId: "fam_patel", classId: "c_jazz_wed", rateCents: 6000, startDate: "2026-09-01", active: true, size: "Child L", age: 12 },
-    { id: "s_dev", name: "Dev Patel", familyId: "fam_patel", classId: "c_hh_tue", rateCents: 6000, startDate: "2026-09-01", active: true, size: "Child S", age: 8 },
+    { id: "s_dev", name: "Dev Patel", familyId: "fam_patel", classId: "c_hh_tue", rateCents: 6000, startDate: "2026-09-01", active: true, size: "Child S", age: 8, birthdate: "2018-06-02", medical: "Asthma, inhaler in bag" },
     { id: "s_ava", name: "Ava Johnson", familyId: "fam_johnson", classId: "c_ballet_mon", rateCents: 9000, startDate: "2026-08-15", active: true, size: "Child M", age: 11 },
-    { id: "s_lily", name: "Lily Johnson", familyId: "fam_johnson", classId: "c_tots_sat", rateCents: 5500, startDate: "2026-09-05", active: true, size: "Child XS", age: 4 },
+    { id: "s_lily", name: "Lily Johnson", familyId: "fam_johnson", classId: "c_tots_sat", rateCents: 5500, startDate: "2026-09-05", active: true, size: "Child XS", age: 4, birthdate: "2022-01-20", allergies: "Bee stings" },
     { id: "s_kai", name: "Kai Nguyen", familyId: "fam_nguyen", classId: "c_contemp_sat", rateCents: 8000, startDate: "2026-09-05", active: true, size: "Adult S", age: 14 },
     { id: "s_bella", name: "Bella Rossi", familyId: "fam_rossi", classId: "c_ballet_mon", rateCents: 9000, startDate: "2026-09-01", active: true, size: "Child S", age: 9 },
     { id: "s_zoe", name: "Zoe Rossi", familyId: "fam_rossi", classId: "c_jazz_wed", rateCents: 6000, startDate: "2026-09-01", active: true, size: "Child L", age: 13 },
@@ -42,7 +43,7 @@ export function seed(): DB {
     version: SEED_VERSION,
     studio: "Blue Ocean Dance Studio",
     families: [
-      { id: "fam_lopez", name: "Lopez", parentName: "Ana Lopez", phone: "(555) 201 4410", email: "ana.lopez@example.com", cardLast4: "1881" },
+      { id: "fam_lopez", name: "Lopez", parentName: "Ana Lopez", phone: "(555) 201 4410", email: "ana.lopez@example.com", cardLast4: "1881", guardian2: { name: "Luis Lopez", phone: "(555) 201 4411", email: "luis.lopez@example.com" }, emergency: { name: "Rosa Diaz", phone: "(555) 201 9900", relation: "Grandmother" } },
       { id: "fam_chen", name: "Chen", parentName: "Li Chen", phone: "(555) 201 7734", email: "li.chen@example.com", cardLast4: "4242" },
       { id: "fam_patel", name: "Patel", parentName: "Raj Patel", phone: "(555) 318 0092", email: "raj.patel@example.com", cardLast4: "5100" },
       { id: "fam_johnson", name: "Johnson", parentName: "Keisha Johnson", phone: "(555) 442 1187", email: "keisha.j@example.com", cardLast4: "0005" },
@@ -147,6 +148,11 @@ export function seed(): DB {
     ],
     requests: [],
     inventoryLog: [],
+    waitlist: [
+      { id: "wl1", classId: "c_hh_tue", familyId: "fam_nguyen", studentName: "Mia Nguyen", age: 9, status: "waiting", added: "2026-10-02" },
+      { id: "wl2", classId: "c_hh_tue", familyId: "fam_chen", studentName: "Emma Chen", age: 8, status: "waiting", added: "2026-10-09" },
+    ],
+    closures: [], billedMonths: [], lateFees: [], regCharged: [], signups: {},
     lastRead: {},
     cancellations: [],
     seq: 1000,

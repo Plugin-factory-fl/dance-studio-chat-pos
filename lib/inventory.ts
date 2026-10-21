@@ -1,3 +1,4 @@
+import { nowDate } from "./clock";
 import { DB, Card, Row } from "./types";
 import { post, nid, fmtDate } from "./engine";
 import { today } from "./seed";
@@ -39,7 +40,7 @@ export function postReview(db: DB, detected: Record<string, number>, opts: { sim
   const items = inventoryItems(db);
   const review = items.filter(i => detected[i.key] !== undefined).map(i => ({ key: i.key, label: label(i), category: i.category, system: i.count, detected: Math.max(0, Math.round(detected[i.key])) }));
   const diffs = review.filter(r => r.detected !== r.system).length;
-  db.messages.push({ id: nid(db, "m"), thread: "owner", from: "owner", text: `Count inventory from photo (${opts.source})`, ts: new Date().toISOString() });
+  db.messages.push({ id: nid(db, "m"), thread: "owner", from: "owner", text: `Count inventory from photo (${opts.source})`, ts: nowDate().toISOString() });
   return post(db, "owner", review.length ? `${opts.simulated ? "Demo mode, simulated results. " : ""}I counted ${review.reduce((a, r) => a + r.detected, 0)} items in ${new Set(review.map(r => r.category)).size} categories. ${diffs} counts differ from the system. Edit anything that looks off, then tap Update inventory.` : "I could not match anything in that photo to your inventory categories.",
     { kind: "review", title: "Photo count review", subtitle: opts.source, badge: opts.simulated ? { text: "Simulated", tone: "warn" } : { text: "AI count", tone: "good" }, rows: [], review, simulated: opts.simulated, image: opts.image, notes: opts.notes });
 }

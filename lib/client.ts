@@ -2,9 +2,11 @@
 import { useEffect, useState, useCallback } from "react";
 import type { DB } from "./types";
 import { seed, SEED_VERSION } from "./seed";
+import { setDemoDate } from "./clock";
+import "./ops";
 
 export const KEY = "blue-ocean-chat-pos-v2";
-export const loadDb = (): DB => { try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d.version === SEED_VERSION) return d; } } catch {} const d = seed(); saveDb(d); return d; };
+export const loadDb = (): DB => { try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d.version === SEED_VERSION) { setDemoDate(d.demoDate); return d; } } } catch {} const d = seed(); setDemoDate(undefined); saveDb(d); return d; };
 export const saveDb = (d: DB) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* storage full: drop photo thumbnails and retry */ d.messages.forEach(m => { if (m.card?.image) m.card.image = undefined; }); localStorage.setItem(KEY, JSON.stringify(d)); } };
 
 export function useDb() {

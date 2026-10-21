@@ -70,3 +70,36 @@ export const MEDICAL_POLICY = [
   "Registration fees, costume fees and recital fees are not refundable once paid or ordered.",
   "Injuries at the studio are covered by our accident policy. Report them to the front desk the same day.",
 ];
+
+// ---------- Billing ----------
+// Seasons scope registration fees and the tuition calendar.
+export const SEASONS = [
+  { id: "fall2026", name: "Fall 2026", start: "2026-09-01", end: "2027-01-31", regOpen: "2026-08-01", regClose: "2026-12-15" },
+  { id: "spring2027", name: "Spring 2027", start: "2027-02-01", end: "2027-06-15", regOpen: "2026-12-01", regClose: "2027-02-15" },
+];
+// Tuition model: "studentRate" uses each dancer's own monthly rate, "rateTable" prices by weekly hours, "perClass" bills each class meeting.
+export const BILLING = {
+  model: "studentRate" as "studentRate" | "rateTable" | "perClass",
+  rateTable: [ { maxHours: 1, cents: 7500 }, { maxHours: 1.5, cents: 9000 }, { maxHours: 2, cents: 11000 }, { maxHours: 3, cents: 14000 }, { maxHours: 99, cents: 17000 } ],
+  perClassCents: 2000,
+  siblingDiscountPct: 10,      // off each additional dancer in the family after the first
+  multiClassDiscountPct: 5,    // off a dancer's tuition when they take 2 or more classes
+  dueDay: 1,                   // tuition is due on this day of the month
+  graceDays: 10,               // late fee applies after this many days unpaid
+  lateFeeCents: 1500,
+  autoPostOnFirst: true,       // tuition posts automatically on the 1st when the demo date passes it
+};
+// Registration fees, charged once per season.
+export const REG_FEES = { perFamilyPerSeasonCents: 3500, perStudentPerSeasonCents: 1500 };
+// Transaction categories used on statements and reports.
+export const TX_CATEGORIES = ["Tuition", "Registration", "Late fee", "Costume", "Merch", "Recital tickets", "Trial", "Specialty", "Discount", "Credit", "Payment", "Other"];
+
+// ---------- Waitlist ----------
+export const WAITLIST_HOLD_HOURS = 48;
+
+// ---------- Closures ----------
+// When the studio closes, credit each missed class at a quarter of monthly tuition if creditClosures is true.
+export const CLOSURE_POLICY = { creditClosures: true, note: "Classes missed for studio closures are credited at a quarter of monthly tuition." };
+
+// ---------- Staff roll call ----------
+export const ROLL_STATUSES = ["present", "late", "left early", "observing", "absent"] as const;

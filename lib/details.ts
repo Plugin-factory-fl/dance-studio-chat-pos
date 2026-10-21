@@ -1,25 +1,28 @@
+import { nowDate } from "./clock";
 import { DB, Student } from "./types";
 import { today } from "./seed";
 import { balance, money, fmtDate } from "./engine";
 import { PAYMENT_PLANS } from "./policy";
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-export const termStart = () => { const d = new Date(); return iso(new Date(d.getFullYear(), d.getMonth(), 1)); };
+export const termStart = () => { const d = nowDate(); return iso(new Date(d.getFullYear(), d.getMonth(), 1)); };
 
 export function attendance(db: DB, s: Student) {
   const t = today(), start = [termStart(), s.startDate].sort()[1];
   const ids = [s.classId, ...(s.extraClassIds ?? [])];
   let sessions = 0;
   for (const id of ids) { const k = db.classes.find(c => c.id === id)!; for (let d = new Date(start + "T00:00:00"); iso(d) < t; d.setDate(d.getDate() + 1)) if (DAYS[d.getDay()] === k.day) sessions++; }
-  const att = db.attendance.filter(a => a.studentId === s.id && a.date >= start);
+  const all = db.attendance.filter(a => a.studentId === s.id && a.date >= start);
+  const att = all.filter(a => !a.status || ["present", "late", "left early"].includes(a.status));
   const present = new Set(att.map(a => `${a.classId}|${a.date}`)).size;
+  const notes = all.filter(a => a.note || (a.status && a.status !== "present")).slice(-3).map(a => `${a.date.slice(5)} ${a.status ?? ""}${a.note ? `: ${a.note}` : ""}`);
   const canc = db.cancellations.filter(c => c.studentId === s.id);
   const pastC = canc.filter(c => c.date < t).length, upC = canc.filter(c => c.date >= t).length;
   const credits = canc.reduce((a, c) => a + c.creditCents, 0);
   const held = Math.max(present, sessions - pastC);
   const absent = Math.max(0, held - present);
   const last = att.map(a => a.date).sort().pop();
-  return { present, absent, cancelled: pastC + upC, upcomingCancelled: upC, credits, last, pct: held ? Math.round(present / held * 100) : 100, start };
+  return { present, absent, cancelled: pastC + upC, upcomingCancelled: upC, credits, last, pct: held ? Math.min(100, Math.round(present / held * 100)) : 100, start, notes };
 }
 
 export function familyDetails(db: DB, familyId: string) {

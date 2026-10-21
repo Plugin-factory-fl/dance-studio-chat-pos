@@ -34,9 +34,9 @@ export function CardView({ c, msgId, onApply }: { c: Card; msgId: string; onAppl
   </div>;
 }
 
-export function Thread({ thread, messages, isMine, send, chips, placeholder, cls, header, composerExtra, onApply, showButtons = true, above }: {
+export function Thread({ thread, messages, isMine, send, chips, placeholder, cls, header, composerExtra, onApply, showButtons = true, above, onAction }: {
   thread: string; messages: Message[]; isMine: (m: Message) => boolean; send: (t: string) => void; chips?: string[]; placeholder: string; cls: string;
-  header?: React.ReactNode; composerExtra?: React.ReactNode; onApply?: (id: string, v: Record<string, number>) => void; showButtons?: boolean; above?: React.ReactNode;
+  header?: React.ReactNode; composerExtra?: React.ReactNode; onApply?: (id: string, v: Record<string, number>) => void; showButtons?: boolean; above?: React.ReactNode; onAction?: (a: string) => void;
 }) {
   const [text, setText] = useState(""); const ref = useRef<HTMLDivElement>(null); const inp = useRef<HTMLInputElement>(null);
   const lastId = messages[messages.length - 1]?.id;
@@ -48,7 +48,7 @@ export function Thread({ thread, messages, isMine, send, chips, placeholder, cls
       {messages.map(m => <div key={m.id} className={`msg ${isMine(m) ? "me" : "sys"} from-${m.from}`}>
         <div className="bubble">{m.text}</div>
         {m.card && <CardView c={m.card} msgId={m.id} onApply={onApply} />}
-        {showButtons && m.buttons && (m.id === lastId || m.sticky) && <div className="btns">{m.buttons.map(b => <button key={b.label} className={b.tone === "primary" ? "primary" : ""} onClick={() => go(b.send)}>{b.label}</button>)}</div>}
+        {showButtons && m.buttons && (m.id === lastId || m.sticky) && <div className="btns">{m.buttons.map(b => <button key={b.label} className={b.tone === "primary" ? "primary" : ""} onClick={() => b.action && onAction ? onAction(b.action) : go(b.send)}>{b.label}</button>)}</div>}
         <div className="ts">{new Date(m.ts).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
       </div>)}
     </div>

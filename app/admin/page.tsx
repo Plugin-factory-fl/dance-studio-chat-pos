@@ -5,10 +5,12 @@ import { Thread } from "@/components/Chat";
 import { useDb } from "@/lib/client";
 import { handle, money, balance, studioReply, fmtDate } from "@/lib/engine";
 import { familyDetails } from "@/lib/details";
+import { downloadPdf } from "@/lib/pdf";
+import { importReview } from "@/lib/ops";
 import { DEMO_SAMPLES, postReview, applyInventory, countWithOpenAI, inventoryItems, LOW_STOCK } from "@/lib/inventory";
 import type { DB, Message } from "@/lib/types";
 
-const OWNER_CHIPS = ["Inventory", "Open requests", "Show this month's revenue and outstanding balances", "Enroll Emma Chen in Monday 5pm Ballet, start next week, $75/month, charge card ending 4242", "Post October tuition for all active students", "Maya checked in", "Text the Tuesday class that recital rehearsal is moved to 5pm", "Run payroll for October", "How many pink tutus do we have left?", "Order 12 medium black leotards", "Merch stock", "Sell 2 hoodies to the Rossi family", "Recital status", "Add Maya to the opening number", "Send costume payment links to all families in the spring show", "Who still needs to sign the photo release?", "Compliance overview", "What did we pay in processing fees this month?", "help"];
+const OWNER_CHIPS = ["Run billing for November", "Advance date to Nov 12", "Statements for all families", "Revenue by category", "Billing rules", "Use rate table billing", "Close studio Nov 26 to 28 for Thanksgiving", "Waitlists", "Import families", "Inventory", "Open requests", "Show this month's revenue and outstanding balances", "Enroll Emma Chen in Monday 5pm Ballet, start next week, $75/month, charge card ending 4242", "Post October tuition for all active students", "Maya checked in", "Text the Tuesday class that recital rehearsal is moved to 5pm", "Run payroll for October", "How many pink tutus do we have left?", "Order 12 medium black leotards", "Merch stock", "Sell 2 hoodies to the Rossi family", "Recital status", "Add Maya to the opening number", "Send costume payment links to all families in the spring show", "Who still needs to sign the photo release?", "Compliance overview", "What did we pay in processing fees this month?", "help"];
 const KEY_STORE = "blue-ocean-openai-key", DEMO_STORE = "blue-ocean-demo-mode";
 const preview = (m?: Message) => m ? (m.from === "parent" ? "" : "Studio: ") + (m.text || m.card?.title || "") : "No messages yet";
 
@@ -47,29 +49,49 @@ function PhotoPanel({ db, update, onClose }: { db: DB; update: (fn: (d: DB) => v
   </div>;
 }
 
-function Details({ db, famId }: { db: DB; famId: string }) {
-  const d = familyDetails(db, famId);
+function Field({ label, value, onSave, editing }: { label: string; value?: string; onSave: (v: string) => void; editing: boolean }) {
+  const [v, setV] = useState(value ?? ""); useEffect(() => setV(value ?? ""), [value, editing]);
+  return <div className="kv"><span>{label}</span>{editing ? <input className="edit" aria-label={label} value={v} onChange={e => setV(e.target.value)} onBlur={() => v !== (value ?? "") && onSave(v)} /> : <span>{value || "not on file"}</span>}</div>;
+}
+function Details({ db, famId, update }: { db: DB; famId: string; update: (fn: (d: DB) => void) => void }) {
+  const d = familyDetails(db, famId); const [ed, setEd] = useState<string | null>(null);
+  useEffect(() => setEd(null), [famId]);
+  const setF = (fn: (f: any) => void) => update(x => fn(x.families.find(y => y.id === famId)!));
+  const setS = (sid: string, fn: (s: any) => void) => update(x => fn(x.students.find(y => y.id === sid)!));
+  const E = ed === "fam";
   return <aside className="details">
-    <div className="d-card"><div className="d-name">{d.f.name} family</div><div className="d-sub">{d.f.parentName}</div>
-      <div className="kv"><span>Phone</span><span>{d.f.phone}</span></div><div className="kv"><span>Email</span><span>{d.f.email}</span></div>
+    <div className="d-card"><div className="d-top"><div><div className="d-name">{d.f.name} family</div><div className="d-sub">{d.f.parentName}</div></div><button className="edit-btn" onClick={() => setEd(E ? null : "fam")}>{E ? "Done" : "Edit"}</button></div>
+      <Field editing={E} label="Guardian" value={d.f.parentName} onSave={v => setF(f => f.parentName = v)} />
+      <Field editing={E} label="Phone" value={d.f.phone} onSave={v => setF(f => f.phone = v)} /><Field editing={E} label="Email" value={d.f.email} onSave={v => setF(f => f.email = v)} />
+      <Field editing={E} label="Second guardian" value={d.f.guardian2?.name} onSave={v => setF(f => f.guardian2 = { ...(f.guardian2 ?? { phone: "", email: "" }), name: v })} />
+      {(E || d.f.guardian2) && <Field editing={E} label="Second guardian phone" value={d.f.guardian2?.phone} onSave={v => setF(f => f.guardian2 = { ...(f.guardian2 ?? { name: "", email: "" }), phone: v })} />}
+      <Field editing={E} label="Emergency contact" value={d.f.emergency ? `${d.f.emergency.name}${d.f.emergency.relation ? ` (${d.f.emergency.relation})` : ""}` : ""} onSave={v => setF(f => { const m = v.match(/^(.*?)\s*(?:\((.*)\))?$/)!; f.emergency = { ...(f.emergency ?? { phone: "" }), name: m[1], relation: m[2] ?? f.emergency?.relation ?? "" }; })} />
+      <Field editing={E} label="Emergency phone" value={d.f.emergency?.phone} onSave={v => setF(f => f.emergency = { ...(f.emergency ?? { name: "", relation: "" }), phone: v })} />
       <div className="kv"><span>Balance</span><span className={d.bal > 0 ? "warn" : "good"}>{d.bal > 0 ? `${money(d.bal)} due` : d.bal < 0 ? `${money(-d.bal)} credit` : "Paid up"}</span></div>
       <div className="kv"><span>Payment plan</span><span>{d.plan.name}</span></div>
       <div className="kv"><span>Card on file</span><span>{d.f.cardLast4 ? `ending ${d.f.cardLast4}` : "none"} · {d.processor.name}</span></div>
+      {d.f.signedUp && <div className="kv"><span>Signed up online</span><span>{fmtDate(d.f.signedUp)}</span></div>}
       <div className="d-h">Waivers</div>{d.waivers.map(w => <div className="kv" key={w.name}><span>{w.name}</span><span className={w.signed ? "good" : "bad"}>{w.signed ? `Signed ${w.signed}` : "Missing"}</span></div>)}
+      <div className="btns"><button onClick={() => downloadPdf(db, `pdf:${famId}`)}>Statement PDF</button><button onClick={() => downloadPdf(db, `invoice:${famId}`)}>Invoice PDF</button></div>
     </div>
     {d.kids.length === 0 && <div className="d-card"><div className="d-sub">No dancers enrolled yet.</div></div>}
-    {d.kids.map(k => <div className="d-card child" key={k.s.id} data-child={k.s.name}>
-      <div className="d-name">{k.s.name}</div><div className="d-sub">Age {k.s.age} · costume size {k.s.size}{k.s.paused ? " · paused" : ""}</div>
+    {d.kids.map(k => { const SE = ed === k.s.id; return <div className="d-card child" key={k.s.id} data-child={k.s.name}>
+      <div className="d-top"><div><div className="d-name">{k.s.name}</div><div className="d-sub">Age {k.s.age} · costume size {k.s.size}{k.s.paused ? " · paused" : ""}</div></div><button className="edit-btn" onClick={() => setEd(SE ? null : k.s.id)}>{SE ? "Done" : "Edit"}</button></div>
+      {(k.s.allergies || k.s.medical) && !SE && <div className="alert">⚠ {[k.s.medical, k.s.allergies && `Allergy: ${k.s.allergies}`].filter(Boolean).join(" · ")}</div>}
+      {SE && <><Field editing label="Name" value={k.s.name} onSave={v => setS(k.s.id, s => s.name = v)} /><Field editing label="Age" value={String(k.s.age)} onSave={v => setS(k.s.id, s => s.age = parseInt(v) || s.age)} />
+        <Field editing label="Birthdate" value={k.s.birthdate} onSave={v => setS(k.s.id, s => s.birthdate = v)} /><Field editing label="Costume size" value={k.s.size} onSave={v => setS(k.s.id, s => s.size = v)} />
+        <Field editing label="Medical" value={k.s.medical} onSave={v => setS(k.s.id, s => s.medical = v)} /><Field editing label="Allergies" value={k.s.allergies} onSave={v => setS(k.s.id, s => s.allergies = v)} /></>}
       <div className="d-h">Classes</div>{k.classes.map(c => <div className="kv" key={c.name + c.when}><span>{c.name}</span><span>{c.when} · {c.room}</span></div>)}
       <div className="d-h">Attendance this term <small>since {fmtDate(k.att.start)}</small></div>
       <div className="att"><div className="ring" style={{ background: `conic-gradient(var(--good) ${k.att.pct * 3.6}deg, #efe9dd 0)` }}><span>{k.att.pct}%</span></div>
         <div className="att-g"><div><b>{k.att.present}</b>present</div><div><b>{k.att.absent}</b>absent</div><div><b>{k.att.cancelled}</b>cancelled</div><div><b>{money(k.att.credits)}</b>credits</div></div></div>
       <div className="kv"><span>Last attended</span><span>{k.att.last ? fmtDate(k.att.last) : "not yet"}</span></div>
+      {k.att.notes.length > 0 && <div className="kv"><span>Roll notes</span><span>{k.att.notes.join(" · ")}</span></div>}
       <div className="d-h">Recital</div><div className="kv"><span>Numbers</span><span>{k.numbers.join(", ") || "Not in a number yet"}</span></div>
       {k.costumes.length > 0 && <div className="kv"><span>Costumes</span><span>{k.costumes.join(", ")}</span></div>}
       <div className="d-h">Merch purchases</div>{k.merch.length ? k.merch.map((m, i) => <div className="kv" key={i}><span>{m.date}</span><span>{m.item} {m.size} · {m.amount}</span></div>) : <div className="kv"><span>None yet</span><span></span></div>}
-      <div className="kv"><span>Medical</span><span className={k.s.paused ? "warn" : ""}>{k.medical}</span></div>
-    </div>)}
+      <div className="kv"><span>Medical pause</span><span className={k.s.paused ? "warn" : ""}>{k.medical}</span></div>
+    </div>; })}
   </aside>;
 }
 
@@ -87,6 +109,7 @@ function Overview({ db }: { db: DB }) {
 
 export default function Admin() {
   const { db, update, reset } = useDb();
+  const csvRef = useRef<HTMLInputElement>(null);
   const [sel, setSel] = useState("owner"); const [q, setQ] = useState(""); const [photo, setPhoto] = useState(false);
   useEffect(() => { if (db && sel !== "owner") update(d => { d.lastRead[sel] = new Date().toISOString(); }); }, [sel, db?.messages.length]); // eslint-disable-line
   const fams = useMemo(() => db ? db.families.map(f => { const t = `parent:${f.id}`; const ms = db.messages.filter(m => m.thread === t); const lr = db.lastRead[t] ?? "";
@@ -99,8 +122,14 @@ export default function Admin() {
   const f = db.families.find(x => x.id === famId);
   const openReqs = db.requests.filter(r => r.familyId === famId && r.status === "open");
   const apply = (id: string, v: Record<string, number>) => update(d => applyInventory(d, id, v));
+  const base = "/dance-studio-chat-pos";
+  const onAction = async (act: string) => {
+    if (/^(pdf|invoice):/.test(act)) { await downloadPdf(db, act); return; }
+    if (act === "import:sample") { const t = await (await fetch(`${base}/samples/families-import.csv`)).text(); update(d => importReview(d, t, "Sample CSV: families-import.csv")); }
+    if (act === "import:file") csvRef.current?.click();
+  };
   return <main className="admin">
-    <div className="brand"><div><b>Blue Ocean Dance Studio</b><span>Admin inbox</span></div><div className="brand-actions"><button className="reset" onClick={() => { if (confirm("Reset the demo data? This clears every thread.")) reset(); }}>Reset demo</button><Link className="admin-btn" href="/">Parent view</Link></div></div>
+    <div className="brand"><div><b>Blue Ocean Dance Studio</b><span>Admin inbox · demo date {fmtDate(db.demoDate ?? new Date().toISOString().slice(0, 10))}</span></div><div className="brand-actions"><button className="reset" onClick={() => { if (confirm("Reset the demo data? This clears every thread.")) reset(); }}>Reset demo</button><Link className="admin-btn ghost" href="/staff">Staff</Link><Link className="admin-btn" href="/">Parent view</Link></div></div>
     <div className="cols">
       <nav className="list">
         <input className="search" placeholder="Search families or dancers" value={q} onChange={e => setQ(e.target.value)} />
@@ -111,14 +140,14 @@ export default function Admin() {
           <div className="li-r">{x.last && <small>{new Date(x.last.ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</small>}{x.reqs > 0 ? <span className="bdg req">{x.reqs} request{x.reqs > 1 ? "s" : ""}</span> : x.unread > 0 ? <span className="bdg">{x.unread}</span> : null}</div>
         </button>)}
       </nav>
-      {sel === "owner" ? <Thread thread="owner" cls="owner" messages={ownerMsgs} isMine={m => m.from === "owner"} send={t => update(d => handle(d, "owner", t))} chips={OWNER_CHIPS} placeholder="Tell the studio what to do" onApply={apply}
+      {sel === "owner" ? <Thread thread="owner" cls="owner" messages={ownerMsgs} isMine={m => m.from === "owner"} send={t => update(d => handle(d, "owner", t))} chips={OWNER_CHIPS} placeholder="Tell the studio what to do" onApply={apply} onAction={onAction}
         header={<header className="head"><div className="head-t">Owner assistant</div><div className="head-s">Front desk and back office · Payments via {db.processor.name}</div></header>}
         above={photo ? <PhotoPanel db={db} update={update} onClose={() => setPhoto(false)} /> : null}
-        composerExtra={<button type="button" className="cam" onClick={() => setPhoto(!photo)} title="Count inventory from photo">📷 Count inventory from photo</button>} />
+        composerExtra={<><input ref={csvRef} type="file" accept=".csv,text/csv" hidden onChange={e => { const fl = e.target.files?.[0]; if (fl) fl.text().then(t => update(d => importReview(d, t, fl.name))); e.target.value = ""; }} /><button type="button" className="cam" onClick={() => setPhoto(!photo)} title="Count inventory from photo">📷 Count inventory from photo</button></>} />
         : f && <Thread thread={sel} cls="parent admin-view" messages={db.messages.filter(m => m.thread === sel)} isMine={m => m.from !== "parent"} showButtons={false} send={t => update(d => studioReply(d, f.id, t))} placeholder={`Reply to ${f.parentName} as the studio`}
           header={<header className="head"><div className="head-t">{f.name} family</div><div className="head-s">{f.parentName} · replies post in their thread as Blue Ocean Dance Studio</div></header>}
           above={openReqs.length ? <div className="req-bar">{openReqs.map(r => <div className="req" key={r.id}><div><b>{r.id}</b> {r.text}</div><div className="btns">{r.type === "question" ? <span className="hint">Reply below to answer</span> : <><button className="primary" onClick={() => update(d => handle(d, "owner", `approve request ${r.id}`))}>Approve</button><button onClick={() => update(d => handle(d, "owner", `decline request ${r.id}`))}>Decline</button></>}</div></div>)}</div> : null} />}
-      {f ? <Details db={db} famId={f.id} /> : <Overview db={db} />}
+      {f ? <Details db={db} famId={f.id} update={update} /> : <Overview db={db} />}
     </div>
   </main>;
 }

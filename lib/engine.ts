@@ -1,3 +1,4 @@
+import { nowDate, setDemoDate } from "./clock";
 import { DB, Card, Message, Family, Student, Klass, Row, Button, Request } from "./types";
 import { today } from "./seed";
 import { showInventory } from "./inventory";
@@ -5,45 +6,45 @@ import { DRESS_CODE, ABSENCE_POLICY, TRIAL_FEE_CENTS, COMPETITION_TEAMS, SPECIAL
 
 export const balTxt = (b: number) => b < 0 ? `${money(-b)} credit` : money(b);
 export const money = (c: number) => (c < 0 ? "minus " : "") + "$" + (Math.abs(c) / 100).toFixed(2);
-const norm = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9$. ]/g, " ").replace(/\s+/g, " ").trim();
+export const norm = (s: string) => s.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9$. ]/g, " ").replace(/\s+/g, " ").trim();
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-const cap = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
-const monthName = () => new Date().toLocaleString("en-US", { month: "long" });
-export const fmtDate = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); if (!d) return iso; return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: y !== new Date().getFullYear() ? "numeric" : undefined }); };
+export const cap = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
+export const monthName = () => nowDate().toLocaleString("en-US", { month: "long" });
+export const fmtDate = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); if (!d) return iso; return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: y !== nowDate().getFullYear() ? "numeric" : undefined }); };
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const nid = (db: DB, p: string) => `${p}${++db.seq}`;
-const amount = (t: string) => { const m = t.match(/\$\s?(\d+(?:,\d{3})*(?:\.\d\d)?)/); return m ? Math.round(parseFloat(m[1].replace(/,/g, "")) * 100) : undefined; };
+export const amount = (t: string) => { const m = t.match(/\$\s?(\d+(?:,\d{3})*(?:\.\d\d)?)/); return m ? Math.round(parseFloat(m[1].replace(/,/g, "")) * 100) : undefined; };
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-const nextDate = (day: string, weeksAhead = 0) => { const d = new Date(); const t = DAYS.indexOf(day.toLowerCase()); let add = (t - d.getDay() + 7) % 7; if (add === 0) add = 7; d.setDate(d.getDate() + add + 7 * weeksAhead); return iso(d); };
+export const nextDate = (day: string, weeksAhead = 0) => { const d = nowDate(); const t = DAYS.indexOf(day.toLowerCase()); let add = (t - d.getDay() + 7) % 7; if (add === 0) add = 7; d.setDate(d.getDate() + add + 7 * weeksAhead); return iso(d); };
 
 export function balance(db: DB, familyId: string) {
   return db.ledger.filter(l => l.familyId === familyId).reduce((s, l) => s + (l.type === "charge" ? l.amountCents : -l.amountCents), 0);
 }
 const fee = (db: DB, cents: number) => Math.round(cents * db.processor.ratePct / 100 + db.processor.fixedCents);
-const kls = (db: DB, id: string) => db.classes.find(c => c.id === id)!;
-const inst = (db: DB, id: string) => db.instructors.find(i => i.id === id)!;
-const className = (k: Klass) => `${k.day} ${k.time} ${k.style}`;
-const fam = (db: DB, id: string) => db.families.find(f => f.id === id)!;
-const stu = (db: DB, id: string) => db.students.find(s => s.id === id)!;
+export const kls = (db: DB, id: string) => db.classes.find(c => c.id === id)!;
+export const inst = (db: DB, id: string) => db.instructors.find(i => i.id === id)!;
+export const className = (k: Klass) => `${k.day} ${k.time} ${k.style}`;
+export const fam = (db: DB, id: string) => db.families.find(f => f.id === id)!;
+export const stu = (db: DB, id: string) => db.students.find(s => s.id === id)!;
 export const parentThread = (f: Family) => `parent:${f.id}`;
-const first = (s: Student) => s.name.split(" ")[0];
+export const first = (s: Student) => s.name.split(" ")[0];
 
 export function post(db: DB, thread: string, text: string, card?: Card, buttons?: Button[], sticky = false) {
-  const m: Message = { id: nid(db, "m"), thread, from: "system", text, card, buttons, sticky, ts: new Date().toISOString() };
+  const m: Message = { id: nid(db, "m"), thread, from: "system", text, card, buttons, sticky, ts: nowDate().toISOString() };
   db.messages.push(m); return m;
 }
 const has = (n: string, w: string) => new RegExp(`\\b${w}\\b`).test(n);
 
-function findFamily(db: DB, t: string): Family | undefined {
+export function findFamily(db: DB, t: string): Family | undefined {
   const n = norm(t);
   return db.families.find(f => has(n, f.name.toLowerCase())) ||
     db.students.filter(s => has(n, first(s).toLowerCase())).map(s => fam(db, s.familyId))[0];
 }
-function findStudent(db: DB, t: string, familyId?: string): Student | undefined {
+export function findStudent(db: DB, t: string, familyId?: string): Student | undefined {
   const n = norm(t); const pool = db.students.filter(s => !familyId || s.familyId === familyId);
   return pool.find(s => n.includes(s.name.toLowerCase())) || pool.find(s => has(n, first(s).toLowerCase()));
 }
-function findClass(db: DB, t: string): Klass | undefined {
+export function findClass(db: DB, t: string): Klass | undefined {
   const n = norm(t).replace(/hiphop/g, "hip hop").replace(/tiny tot\b/g, "tiny tots").replace(/avil|availible|avalible/g, "available");
   let best: Klass | undefined, score = 0;
   for (const k of db.classes) {
@@ -61,7 +62,7 @@ function parseClassSpec(db: DB, t: string): Klass | undefined {
   return { id: "", day: cap(m[1].toLowerCase()), time: m[2].replace(/\s/g, "").toLowerCase(), style: cap(m[3].replace(/-/g, " ").trim()), instructorId: db.instructors[0].id, hours: 1, room: "Studio A", ageMin: 3, ageMax: 18, level: "Open", capacity: 12, priceCents: 7500 };
 }
 const monthIn = (t: string) => { const m = norm(t).match(new RegExp(`\\b(${MONTHS.join("|")})\\b`)); return m ? cap(m[1]) : monthName(); };
-const monthKey = (name: string) => { const i = MONTHS.indexOf(name.toLowerCase()); const y = new Date().getFullYear() - (i > new Date().getMonth() ? 1 : 0); return `${y}-${String(i + 1).padStart(2, "0")}`; };
+const monthKey = (name: string) => { const i = MONTHS.indexOf(name.toLowerCase()); const y = nowDate().getFullYear() - (i > nowDate().getMonth() ? 1 : 0); return `${y}-${String(i + 1).padStart(2, "0")}`; };
 
 // ---------- cards ----------
 function studentCard(db: DB, s: Student, title = "Student record"): Card {
@@ -74,30 +75,33 @@ function studentCard(db: DB, s: Student, title = "Student record"): Card {
     ["Classes attended", String(att)], ["Waivers signed", `${signed} of ${db.waivers.length}`, signed < db.waivers.length ? "warn" : "good"],
     ["Family", `${f.parentName} · card ${f.cardLast4 ?? "none"}`], ["Family balance", money(bal), bal > 0 ? "warn" : "good"]] };
 }
-function balanceCard(db: DB, f: Family): Card {
+export function balanceCard(db: DB, f: Family): Card {
   const items = db.ledger.filter(l => l.familyId === f.id).slice(-5).map(l => [`${fmtDate(l.date)} · ${l.description}`, (l.type === "charge" ? "" : l.type === "credit" ? "credit " : "paid ") + money(l.amountCents), l.type !== "charge" ? "good" : undefined] as Row);
   const b = balance(db, f.id);
   return { kind: "balance", title: `${f.name} family account`, subtitle: `${f.parentName} · card ending ${f.cardLast4 ?? "none"}`, badge: { text: b > 0 ? `${money(b)} due` : "Paid up", tone: b > 0 ? "warn" : "good" }, rows: [...items.map(r => r.filter(Boolean) as Row), ["Balance due", balTxt(b), b > 0 ? "warn" : "good"]] };
 }
 
-function charge(db: DB, f: Family, cents: number, desc: string, thread: string) {
-  db.ledger.push({ id: nid(db, "l"), familyId: f.id, type: "charge", amountCents: cents, description: desc, date: today(), thread });
+export const catFor = (desc: string) => /late fee/i.test(desc) ? "Late fee" : /registration/i.test(desc) ? "Registration" : /tuition/i.test(desc) ? "Tuition" : /costume|tutu|leotard dress|jacket|dress/i.test(desc) && !/tights|slipper|shoes/i.test(desc) ? "Costume" : /ticket/i.test(desc) ? "Recital tickets" : /trial/i.test(desc) ? "Trial" : /acro|pointe|leaps|specialty/i.test(desc) ? "Specialty" : /hoodie|tee|bag|bottle|scrunchie|tights|leotard|slipper|shoes/i.test(desc) ? "Merch" : /credit reversed/i.test(desc) ? "Credit" : "Other";
+export const hooks: { spotOpened: (db: DB, classId: string) => void; owner?: (db: DB, raw: string) => boolean; parent?: (db: DB, f: Family, raw: string) => boolean; signup?: (db: DB, t: string, raw: string) => unknown } = { spotOpened: () => {} };
+export function charge(db: DB, f: Family, cents: number, desc: string, thread: string, extra: Partial<import("./types").LedgerEntry> = {}) {
+  db.ledger.push({ id: nid(db, "l"), familyId: f.id, type: "charge", amountCents: cents, description: desc, date: today(), thread, category: catFor(desc), ...extra });
 }
-function collect(db: DB, f: Family, cents: number, desc: string, by: "owner" | "parent") {
+export function collect(db: DB, f: Family, cents: number, desc: string, by: "owner" | "parent") {
   const fe = fee(db, cents);
   db.ledger.push({ id: nid(db, "l"), familyId: f.id, type: "payment", amountCents: cents, description: desc, date: today(), processor: db.processor.name, feeCents: fe, thread: by === "owner" ? "owner" : parentThread(f) });
   // mark billed costumes paid when the balance clears
   if (balance(db, f.id) <= 0) db.assignments.filter(a => a.billed && stu(db, a.studentId).familyId === f.id).forEach(a => a.paid = true);
-  const card: Card = { kind: "payment", title: "Payment confirmation", subtitle: `${fmtDate(today())} · ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`, badge: { text: "Paid", tone: "good" }, rows: [["Family", f.name], ["Amount", money(cents)], ["For", desc], ["Method", f.cardLast4 ? `Card ending ${f.cardLast4}` : "Card"], ["Processor", db.processor.name + (db.processor.external ? " (your merchant)" : "")], ["Processing fee", money(fe), "muted"], ["Net to studio", money(cents - fe)], ["New balance", balTxt(balance(db, f.id)), balance(db, f.id) > 0 ? "warn" : "good"]] };
+  const card: Card = { kind: "payment", title: "Payment confirmation", subtitle: `${fmtDate(today())} · ${nowDate().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`, badge: { text: "Paid", tone: "good" }, rows: [["Family", f.name], ["Amount", money(cents)], ["For", desc], ["Method", f.cardLast4 ? `Card ending ${f.cardLast4}` : "Card"], ["Processor", db.processor.name + (db.processor.external ? " (your merchant)" : "")], ["Processing fee", money(fe), "muted"], ["Net to studio", money(cents - fe)], ["New balance", balTxt(balance(db, f.id)), balance(db, f.id) > 0 ? "warn" : "good"]] };
   post(db, "owner", `Payment of ${money(cents)} received from the ${f.name} family${by === "parent" ? " in their parent thread" : ""}.`, card);
   post(db, parentThread(f), `Thank you! Your payment of ${money(cents)} is posted.`, card);
 }
-const payBtn = (db: DB, f: Family): Button[] => [{ label: `Pay ${money(balance(db, f.id))} now`, send: "pay now", tone: "primary" }];
+export const payBtn = (db: DB, f: Family): Button[] => [{ label: `Pay ${money(balance(db, f.id))} now`, send: "pay now", tone: "primary" }];
 
 // ---------- help ----------
 const HELP_OWNER: Card = { kind: "info", title: "What you can ask", subtitle: "Front desk and back office in one thread", rows: [], sections: [
   { heading: "Front desk", rows: [["Enroll", "Enroll Emma Chen in Monday 5pm Ballet, $75/month, charge card ending 4242"], ["Bill", "Post October tuition for all active students"], ["Charge", "Charge the Lopez family $85"], ["Check in", "Maya checked in  /  Mark all present for Tuesday 4pm"], ["Message", "Text the Tuesday class that rehearsal moved to 5pm"], ["Report", "Show this month's revenue and outstanding balances"]] },
   { heading: "Back office", rows: [["Payroll", "Run payroll for October  /  Pay Sarah $450 for October classes"], ["Costumes", "How many pink tutus do we have left?  /  Order 12 medium black leotards"], ["Merch", "Merch stock  /  Sell 2 hoodies to the Rossi family"], ["Recital", "Recital status  /  Running order  /  Add Maya to the opening number  /  Mark videographer booked"], ["Costume fees", "Send costume payment links to all families in the spring show"], ["Waivers", "Who still needs to sign the photo release?  /  Send photo release to missing families"]] },
+  { heading: "Billing and operations", rows: [["Billing", "Run billing for November  /  Billing rules  /  Use rate table billing"], ["Demo clock", "Advance date to Nov 12  /  Next month"], ["Statements", "Statement for Lopez  /  Statements for all families"], ["Categories", "Revenue by category"], ["Closures", "Close studio Nov 26 to 28 for Thanksgiving"], ["Waitlist", "Waitlists  /  Withdraw Dev from Tuesday hip hop"], ["Import", "Import families"], ["Inventory", "Inventory"]] },
   { heading: "Money and requests", rows: [["Fees", "What did we pay in processing fees this month?"], ["Processor", "Use Square at 2.6% + 15c"], ["Requests", "Open requests  /  Reply to Lopez: see you Tuesday"]] }] };
 
 // ---------- owner ----------
@@ -107,6 +111,7 @@ function ownerCmd(db: DB, raw: string) {
   if (pend && /^(yes|y|confirm|ok|approve pay run|post tuition|send links)\b/.test(n)) { db.pending[T] = undefined; return execPending(db, T, pend); }
   if (pend && /^(no|cancel|n)\b/.test(n)) { db.pending[T] = undefined; return post(db, T, "Okay, cancelled. Nothing was changed."); }
   if (/^(help|what can)/.test(n)) return post(db, T, "Here is everything this thread can run.", HELP_OWNER);
+  if (hooks.owner?.(db, t)) return;
 
   let m: RegExpMatchArray | null;
   if ((m = n.match(/^(approve|decline) request (r\d+)/))) return resolveRequest(db, m[2].toUpperCase(), m[1] === "approve");
@@ -346,7 +351,7 @@ function waivers(db: DB, t: string) {
     const list = w ? [w] : db.waivers;
     const targets = /new waiver|all families/.test(n) ? db.families : db.families.filter(f => list.some(x => !db.signatures.some(s => s.familyId === f.id && s.waiverId === x.id)));
     targets.forEach(f => list.filter(x => /new waiver|all families/.test(n) || !db.signatures.some(s => s.familyId === f.id && s.waiverId === x.id)).forEach(x =>
-      post(db, parentThread(f), `Please review and sign the ${x.name.toLowerCase()} for the ${new Date().getFullYear()} season.`, { kind: "compliance", title: x.name, subtitle: "Blue Ocean Dance Studio", badge: { text: "Signature needed", tone: "warn" }, rows: [["Family", f.name], ["Dancers", db.students.filter(s => s.familyId === f.id).map(first).join(", ") || "none yet"]] }, [{ label: `Sign ${x.name.toLowerCase()}`, send: `sign ${x.name.toLowerCase()}`, tone: "primary" }])));
+      post(db, parentThread(f), `Please review and sign the ${x.name.toLowerCase()} for the ${nowDate().getFullYear()} season.`, { kind: "compliance", title: x.name, subtitle: "Blue Ocean Dance Studio", badge: { text: "Signature needed", tone: "warn" }, rows: [["Family", f.name], ["Dancers", db.students.filter(s => s.familyId === f.id).map(first).join(", ") || "none yet"]] }, [{ label: `Sign ${x.name.toLowerCase()}`, send: `sign ${x.name.toLowerCase()}`, tone: "primary" }])));
     return post(db, "owner", `Sent ${list.length === 1 ? `the ${list[0].name.toLowerCase()}` : "waivers"} to ${targets.length} families. You will see each signature here as it comes in.`, { kind: "message", title: "Waiver sent", badge: { text: `${targets.length} families`, tone: "good" }, rows: targets.map(f => [f.parentName, `${f.name} family thread`] as Row) });
   }
   const checks = db.instructors.filter(i => !i.checkOk);
@@ -390,7 +395,7 @@ function report(db: DB, t: string) {
   return post(db, "owner", over ? `${owing.length} families owe more than ${money(min)}.` : `Here is ${monthName()} so far.`, card, owing.filter(x => x.f.cardLast4).map(x => ({ label: `Charge ${x.f.name} ${money(x.b)}`, send: `collect from ${x.f.name}` })), true);
 }
 
-function clearButtons(db: DB, r: Request) { const m = db.messages.find(x => x.id === r.ownerMsgId); if (m) m.buttons = undefined; }
+export function clearButtons(db: DB, r: Request) { const m = db.messages.find(x => x.id === r.ownerMsgId); if (m) m.buttons = undefined; }
 function resolveRequest(db: DB, rid: string, ok: boolean) {
   const r = db.requests.find(x => x.id === rid);
   if (!r || r.status !== "open") return post(db, "owner", `Request ${rid} is not open.`);
@@ -478,7 +483,7 @@ function execPending(db: DB, T: string, p: { action: string; data: any }) {
 const WORDNUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, a: 1, next: 1 };
 function countIn(n: string) { const m = n.match(/\b(\d+|one|two|three|four|five|six)\s+(?:more\s+)?(?:classes|class|sessions|lessons|weeks)/); return m ? (parseInt(m[1]) || WORDNUM[m[1]] || 1) : 0; }
 function ageIn(n: string) { const m = n.match(/\b(\d{1,2})\s*(?:years?|yrs?|yo|year old)\b/) ?? n.match(/\bage(?:d|s)?\s*(\d{1,2})\b/) ?? n.match(/\b(?:shes|hes|she is|he is|is)\s+(\d{1,2})\b/); return m ? parseInt(m[1]) : undefined; }
-const spots = (db: DB, k: Klass) => k.capacity - db.students.filter(s => (s.classId === k.id || (s.extraClassIds ?? []).includes(k.id)) && s.active).length;
+export const spots = (db: DB, k: Klass) => k.capacity - db.students.filter(s => (s.classId === k.id || (s.extraClassIds ?? []).includes(k.id)) && s.active).length;
 const ages = (k: Klass) => `ages ${k.ageMin} to ${k.ageMax}`;
 function classList(db: DB, T: string, age: number | undefined, trial: boolean, who = "Your dancer") {
   const list = db.classes.filter(k => age === undefined || (age >= k.ageMin && age <= k.ageMax));
@@ -524,12 +529,12 @@ function dancewear(db: DB, f: Family, T: string, raw: string) {
   const btns: Button[] = list.flatMap(i => { const sz = Object.entries(i.sizes!).filter(([z, q]) => q > 0 && (!kidSizes.length || kidSizes.includes(z))).map(([z]) => z); return (sz.length ? sz : Object.entries(i.sizes!).filter(([, q]) => q > 0).map(([z]) => z)).slice(0, 3).map(z => ({ label: `Buy ${i.name.toLowerCase()} ${z} · ${money(i.priceCents)}`, send: `purchase ${i.id} ${z}` })); });
   return post(db, T, "Yes, we stock them, so you do not need to buy elsewhere. You are also welcome to bring your own.", card, btns, true);
 }
-function upcoming(db: DB, s: Student, count: number) {
+export function upcoming(db: DB, s: Student, count: number) {
   const k = kls(db, s.classId); const out: string[] = []; const taken = new Set(db.cancellations.filter(c => c.studentId === s.id).map(c => c.date));
   for (let w = 0; out.length < count && w < 30; w++) { const d = nextDate(k.day, w); if (!taken.has(d)) out.push(d); }
   return out;
 }
-const perClass = (s: Student) => Math.round(s.rateCents / 4);
+export const perClass = (s: Student) => Math.round(s.rateCents / 4);
 function absencePolicy(db: DB, f: Family, T: string, raw: string, count: number) {
   const s = findStudent(db, raw, f.id) ?? db.students.find(x => x.familyId === f.id);
   const card: Card = { kind: "info", title: "Absence and cancellation policy", rows: ABSENCE_POLICY.map((p, i) => [`${i + 1}`, p] as Row) };
@@ -554,13 +559,13 @@ function cancelSessions(db: DB, f: Family, T: string, raw: string, count: number
 
 
 // Moving a dancer drops future cancellations for the old class and reverses their credit.
-function moveClass(db: DB, s: Student, toId: string) {
+export function moveClass(db: DB, s: Student, toId: string) {
   const old = s.classId, t = today();
   const stale = db.cancellations.filter(c => c.studentId === s.id && c.classId === old && c.date >= t);
   const amt = stale.reduce((a, c) => a + c.creditCents, 0);
   db.cancellations = db.cancellations.filter(c => !stale.includes(c));
   if (amt) db.ledger.push({ id: nid(db, "l"), familyId: s.familyId, type: "charge", amountCents: amt, description: `Absence credit reversed, ${first(s)} moved out of ${className(kls(db, old))}`, date: t, thread: parentThread(fam(db, s.familyId)) });
-  s.classId = toId; return amt;
+  s.classId = toId; hooks.spotOpened(db, old); return amt;
 }
 const ALL_SIZES = (s: string) => s;
 function kidsByAges(db: DB, f: Family, n: string) {
@@ -571,7 +576,7 @@ function kidsByAges(db: DB, f: Family, n: string) {
   return { kids, pick: byName.length ? byName : byAge.length ? byAge : kids, ages, missing: ages.filter(a => !kids.some(k => k.age === a)) };
 }
 function purchaseHistory(db: DB, f: Family, T: string, raw: string) {
-  const n = norm(raw), year = String(new Date().getFullYear());
+  const n = norm(raw), year = String(nowDate().getFullYear());
   const item = db.merch.find(i => i.name.toLowerCase().split(" ").some(w => w.length > 3 && n.includes(w.replace(/s$/, ""))));
   const { pick, missing } = kidsByAges(db, f, n);
   if (!pick.length) return post(db, T, "You do not have any dancers on file yet, so there are no purchases to show.");
@@ -640,7 +645,7 @@ function switchPlan(db: DB, f: Family, T: string, raw: string) {
   const p = PAYMENT_PLANS.find(x => raw.toLowerCase().includes(x.id)) ?? PAYMENT_PLANS[0], was = PAYMENT_PLANS.find(x => x.id === (f.plan ?? "monthly"))!;
   f.plan = p.id;
   const tuition = db.students.filter(s => s.familyId === f.id && s.active).reduce((a, s) => a + s.rateCents, 0);
-  const card: Card = { kind: "confirm", title: "Payment plan updated", badge: { text: "Active", tone: "good" }, rows: [["Family", f.name], ["Old plan", was.name], ["New plan", p.name], ["Details", p.desc], ["Next charge", `${fmtDate(iso(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)))} · ${money(Math.round(tuition * p.months * (100 - p.discountPct) / 100))}`], ["Card", `ending ${f.cardLast4 ?? "on file"}`]] };
+  const card: Card = { kind: "confirm", title: "Payment plan updated", badge: { text: "Active", tone: "good" }, rows: [["Family", f.name], ["Old plan", was.name], ["New plan", p.name], ["Details", p.desc], ["Next charge", `${fmtDate(iso(new Date(nowDate().getFullYear(), nowDate().getMonth() + 1, 1)))} · ${money(Math.round(tuition * p.months * (100 - p.discountPct) / 100))}`], ["Card", `ending ${f.cardLast4 ?? "on file"}`]] };
   post(db, "owner", `${f.parentName} switched to ${p.name.toLowerCase()}.`, { ...card, kind: "message", badge: { text: "Done automatically", tone: "muted" } });
   return post(db, T, `Done. You are now on ${p.name.toLowerCase()}.`, card);
 }
@@ -656,7 +661,7 @@ function medicalRequest(db: DB, f: Family, T: string, raw: string) {
 }
 
 // ---------- parent ----------
-function newRequest(db: DB, f: Family, r: Omit<Request, "id" | "status" | "familyId">, parentText: string, card: Card) {
+export function newRequest(db: DB, f: Family, r: Omit<Request, "id" | "status" | "familyId">, parentText: string, card: Card) {
   const req: Request = { ...r, id: `R${++db.seq}`, familyId: f.id, status: "open" };
   db.requests.push(req);
   const m = post(db, "owner", `New request from ${f.parentName}: ${r.text}`, { ...card, title: `${card.title} · ${req.id}`, badge: { text: "Waiting on you", tone: "warn" } },
@@ -670,6 +675,7 @@ function parentCmd(db: DB, T: string, raw: string) {
   const pend = db.pending[T]; const b = balance(db, f.id);
   if (pend && /^(yes|y|confirm|ok|pay now|buy)\b/.test(n)) { db.pending[T] = undefined; return execPending(db, T, pend); }
   if (pend && /^(no|cancel|not now|n)$/.test(n)) { db.pending[T] = undefined; return post(db, T, "No problem. Nothing was changed."); }
+  if (hooks.parent?.(db, f, raw)) return;
   if (/^keep my classes/.test(n)) return post(db, T, "No problem, nothing was cancelled.");
   if (/^purchase /.test(n)) return dancewear(db, f, T, raw);
   if (/^help|what can/.test(n)) return post(db, T, "Here is what you can ask.", { kind: "info", title: "Your family thread", rows: [["Classes", "What classes are available?  /  Classes for a 5 year old"], ["Dress code", "What does my child need to wear?"], ["Dancewear", "Do you have leotards and tights?"], ["Absences", "My child will miss the next 3 classes"], ["Balance", "What's my balance?"], ["Pay", "Pay October tuition"], ["Trial", "Book a trial for Sofia in Saturday 10am Contemporary"], ["Switch", "Can Maya switch to Thursday hip hop?"], ["Cancel", "Cancel next week's class"], ["Tickets", "Buy 4 recital tickets"], ["Question", "Ask anything, the studio will reply here"]] });
@@ -726,7 +732,7 @@ function parentCmd(db: DB, T: string, raw: string) {
     if (!s) return post(db, T, "Which dancer should switch?");
     if (!k || k.id === s.classId) return classList(db, T, s.age, false);
     const from = kls(db, s.classId);
-    if (spots(db, k) <= 0) return newRequest(db, f, { type: "switch", studentId: s.id, toClassId: k.id, text: `Switch ${first(s)} from ${className(from)} to ${className(k)} (class is full)` }, `${className(k)} is full, so I asked the studio about a spot for ${first(s)}.`, { kind: "request", title: "Class switch request", rows: [["Dancer", s.name], ["From", className(from)], ["To", className(k)]] });
+    if (spots(db, k) <= 0) return post(db, T, `${className(k)} is full right now. Want a spot on the waitlist? You will be offered the next opening right here.`, { kind: "roster", title: `${k.style} is full`, subtitle: `${className(k)} · ${db.waitlist.filter(w => w.classId === k.id && w.status === "waiting").length} families waiting`, rows: [["Dancer", s.name], ["Class", className(k)], ["Open spots", "0", "bad"]] }, [{ label: "Join waitlist", send: `join waitlist ${k.id} for ${first(s)}`, tone: "primary" }]);
     const reversed = moveClass(db, s, k.id);
     const card: Card = { kind: "confirm", title: "Class switch confirmed", badge: { text: "Done", tone: "good" }, rows: [["Dancer", s.name], ["From", className(from)], ["To", k.style], ["Day and time", `${k.day} ${k.time} · ${k.room}`], ["First class", fmtDate(nextDate(k.day))], ["Amount", `${money(s.rateCents)} per month, no change`], ...(reversed ? [["Old class credits", `${money(reversed)} removed, those classes are no longer on the schedule`, "muted"] as Row] : [])] };
     post(db, "owner", `${f.parentName} switched ${first(s)} from ${className(from)} to ${className(k)}. Rosters updated.`, { ...card, kind: "message", badge: { text: "Done automatically", tone: "muted" } });
@@ -738,13 +744,15 @@ function parentCmd(db: DB, T: string, raw: string) {
 
 export function handle(db: DB, thread: string, text: string) {
   if (!text.trim()) return;
-  db.messages.push({ id: nid(db, "m"), thread, from: thread === "owner" ? "owner" : "parent", text: text.trim(), ts: new Date().toISOString() });
+  setDemoDate(db.demoDate);
+  if (thread.startsWith("signup:")) { hooks.signup?.(db, thread, text); return; }
+  db.messages.push({ id: nid(db, "m"), thread, from: thread === "owner" ? "owner" : "parent", text: text.trim(), ts: nowDate().toISOString() });
   if (thread === "owner") ownerCmd(db, text); else parentCmd(db, thread, text);
 }
 
 /** Studio replies directly in a parent thread from the admin inbox. */
 export function studioReply(db: DB, familyId: string, text: string) {
   const f = fam(db, familyId); if (!text.trim()) return;
-  db.messages.push({ id: nid(db, "m"), thread: parentThread(f), from: "owner", text: text.trim(), ts: new Date().toISOString() });
+  db.messages.push({ id: nid(db, "m"), thread: parentThread(f), from: "owner", text: text.trim(), ts: nowDate().toISOString() });
   db.requests.filter(r => r.familyId === f.id && r.type === "question" && r.status === "open").forEach(r => { r.status = "approved"; clearButtons(db, r); });
 }
