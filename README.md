@@ -76,3 +76,16 @@ Parent threads (all self service, finished in chat with a notice to the owner th
 ## Limitations
 
 Payments, texts and emails are simulated. Commands are rule based, so phrasing should be close to the examples. Data lives only in your browser. Single user, no auth.
+
+## v6: billing, waitlists, closures, signup, staff roll call, editing, import
+
+All rules live in `lib/policy.ts` (SEASONS, BILLING, REG_FEES, TX_CATEGORIES, WAITLIST_HOLD_HOURS, CLOSURE_POLICY, ROLL_STATUSES).
+
+* **Demo clock**: `Advance date to Nov 12`, `advance 10 days`, `next month`, `what's the date`. Advancing past the 1st auto posts that month's tuition; passing the grace period applies late fees.
+* **Billing**: `Billing rules`, `Run billing for November` (preview card, then Post), `Use rate table billing`, `Use per class billing`, `Use student rate billing`, `Revenue by category`. Sibling and multi class discounts plus per family and per dancer season registration fees.
+* **Statements**: `Statement for Garcia`, `Statements for all families`; parents can say `Send my statement`. PDFs are built in the browser with jsPDF.
+* **Waitlists**: full classes offer `Join waitlist`. When a spot opens, the next family gets an offer with Accept and a 48 hour hold; the owner is notified. `waitlists` lists them.
+* **Closures**: `Close studio Nov 26 to 28 for Thanksgiving` previews, then cancels classes, skips roll call, credits families (if policy says so) and notifies them.
+* **Online signup**: on the parent page tap `New family` for a guided chat signup (guardians, dancers, birthdates, medical, allergies, class, emergency contact, waiver, test card).
+* **Staff roll call**: `/staff` shows today's classes, medical alerts, Present, Late, Left early, Observing, Absent and notes. Submit syncs to admin.
+* **Editable records**: Edit buttons in the admin details column. **Import**: `Import families` with `public/samples/families-import.csv` and a review card before applying.
