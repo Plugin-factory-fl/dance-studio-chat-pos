@@ -1,5 +1,5 @@
 import { DB, Card, Message, Family, Student, Klass } from "./types";
-import { today } from "./store";
+import { today } from "./seed";
 
 const money = (c: number) => "$" + (c / 100).toFixed(2);
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();

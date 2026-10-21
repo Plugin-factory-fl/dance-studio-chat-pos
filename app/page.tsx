@@ -1,9 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import type { Message } from "@/lib/types";
+import type { Message, DB } from "@/lib/types";
+import { seed } from "@/lib/seed";
+import { handle } from "@/lib/engine";
+import { view } from "@/lib/view";
+const KEY = "dance-studio-chat-pos-v1";
+const loadDb = (): DB => { try { const r = localStorage.getItem(KEY); if (r) return JSON.parse(r); } catch {} const d = seed(); localStorage.setItem(KEY, JSON.stringify(d)); return d; };
+const saveDb = (d: DB) => localStorage.setItem(KEY, JSON.stringify(d));
 type State = { studio: string; processor: { name: string }; messages: Message[]; parentFamily?: { id: string; parentName: string; name: string } };
 
-function Thread({ title, sub, thread, cls, state, send }: { title: string; sub: string; thread: string; cls: string; state: State; send: (t: string, x: string) => void }) {
+function Thread({ title, sub, thread, cls, state, send }: { title: string; sub: React.ReactNode; thread: string; cls: string; state: State; send: (t: string, x: string) => void }) {
   const [text, setText] = useState(""); const ref = useRef<HTMLDivElement>(null);
   const msgs = state.messages.filter(m => m.thread === thread);
   const lastId = msgs[msgs.length - 1]?.id;
@@ -27,16 +33,13 @@ function Thread({ title, sub, thread, cls, state, send }: { title: string; sub: 
 
 export default function Page() {
   const [state, setState] = useState<State | null>(null);
-  const refresh = () => fetch("/api/state").then(r => r.json()).then(setState);
-  useEffect(() => { refresh(); const i = setInterval(refresh, 4000); return () => clearInterval(i); }, []);
-  const send = async (thread: string, text: string) => {
-    const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread, text }) });
-    setState(await r.json());
-  };
+  useEffect(() => { setState(view(loadDb()) as State); }, []);
+  const send = (thread: string, text: string) => { const d = loadDb(); handle(d, thread, text); saveDb(d); setState(view(d) as State); };
+  const reset = () => { if (confirm("Reset the demo data?")) { const d = seed(); saveDb(d); setState(view(d) as State); } };
   if (!state) return <div style={{ padding: 20 }}>Loading threads</div>;
   const pf = state.parentFamily!;
   return <main className="wrap">
-    <Thread title={`${state.studio} · Owner thread`} sub={`Processor: ${state.processor.name}. Type help for examples.`} thread="owner" cls="owner" state={state} send={send} />
+    <Thread title={`${state.studio} · Owner thread`} sub={<>Processor: {state.processor.name}. Type help for examples. <button className="reset" onClick={reset}>Reset demo</button></>} thread="owner" cls="owner" state={state} send={send} />
     <Thread title={`${pf.name} family thread`} sub={`${pf.parentName}, parent view`} thread={`parent:${pf.id}`} cls="parent" state={state} send={send} />
   </main>;
 }

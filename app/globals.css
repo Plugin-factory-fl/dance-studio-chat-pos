@@ -16,3 +16,4 @@
 .ts{font-size:10px;opacity:.6;margin-top:3px}
 form{display:flex;border-top:1px solid #e3e7ef}form input{flex:1;border:0;padding:14px;font-size:15px;outline:none}
 form button{border:0;background:#5b8def;color:#fff;padding:0 18px;font-weight:600;cursor:pointer}.parent form button{background:#8a6be0}
+.reset{margin-left:8px;border:1px solid #fff;background:transparent;color:#fff;border-radius:12px;padding:2px 8px;cursor:pointer;font-size:12px}

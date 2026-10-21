@@ -1,8 +1,5 @@
-import fs from "fs";
-import path from "path";
 import { DB } from "./types";
-const FILE = path.join(process.cwd(), "data", "db.json");
-const today = () => new Date().toISOString().slice(0, 10);
+export const today = () => new Date().toISOString().slice(0, 10);
 export function seed(): DB {
   const now = new Date().toISOString();
   const db: DB = {
@@ -39,9 +36,3 @@ export function seed(): DB {
   };
   return db;
 }
-export function load(): DB {
-  if (!fs.existsSync(FILE)) { const db = seed(); save(db); return db; }
-  return JSON.parse(fs.readFileSync(FILE, "utf8"));
-}
-export function save(db: DB) { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(db, null, 2)); }
-export { today };
