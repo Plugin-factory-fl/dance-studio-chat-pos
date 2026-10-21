@@ -1,6 +1,6 @@
 # Dance Studio Chat POS (prototype)
 
-A chat first point of sale and studio management prototype. The owner and one example parent (the Chen family) each have a persistent chat thread. Every request is plain language, answered with a confirmation and an inline card. The thread history is the audit trail.
+Blue Ocean Dance Studio: a chat first point of sale and studio management prototype. The owner and one example parent (the Chen family) each have a persistent chat thread. Every request is plain language, answered with a confirmation and an inline card. The thread history is the audit trail.
 
 **Live demo:** https://plugin-factory-fl.github.io/dance-studio-chat-pos/
 
@@ -20,27 +20,29 @@ Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
 
 * `lib/types.ts`: families, students, classes, ledger (charges and payments), attendance, messages, processor.
 * `lib/engine.ts`: command parser and actions. Both threads write to the same family accounts, and charges, enrollments and payments are posted into both threads.
-* `lib/seed.ts`: demo data (Lopez, Chen, Patel families; Hip Hop, Ballet, Jazz classes).
-* Payments run through a stub processor. The default is Stripe at 2.9% + 30c. The owner can note any other processor ("Use Square at 2.6% + 15c") and every payment records its processor and fee.
+* `lib/seed.ts`: demo data: 6 families, 8 dancers, 6 classes, 4 instructors with per class rates, costumes by size, studio store items, the Spring Showcase (tickets, running order, vendors) and waivers.
+* Payments run through a stub processor. The default is S## Demo script
 
-## Demo script
+Tap the suggestion chips under each thread, or type these. Use the family picker in the parent thread header to switch families.
 
-Owner thread (left):
-1. `Enroll Emma Chen in Monday 5pm Ballet, start next week, $75/month, charge card ending 4242` then tap **Confirm enroll**. The Chen thread gets notified.
+Front end (owner thread):
+1. `Enroll Emma Chen in Monday 5pm Ballet, start next week, $75/month, charge card ending 4242` then **Confirm enroll**.
+2. `Post October tuition for all active students` then **Post tuition**. `Charge the Lopez family $85`.
+3. `Maya checked in` or `Mark all present for Tuesday 4pm`.
+4. `Text the Tuesday class that recital rehearsal is moved to 5pm`.
+5. `Show this month's revenue and outstanding balances`, `Show outstanding balances over $50`, `What did we pay in processing fees this month?`, `Use Square at 2.6% + 15c`.
 
-Parent thread (right):
-2. `What's my balance?` returns "You owe $75.00 for October. Pay now?" Tap **Pay $75.00 now**. The receipt appears in both threads.
+Back end (same owner thread):
+6. Payroll: `Run payroll for October` then **Approve pay run**, or `Pay Sarah $450 for October classes`.
+7. Costumes: `How many pink tutus do we have left?`, `Order 12 medium black leotards`, `Costume size chart`.
+8. Merch: `Merch stock`, `Sell 2 hoodies to the Rossi family`.
+9. Recital: `Recital status`, `Running order`, `Mark videographer booked`, `Add Maya to the opening number`, `Send costume payment links to all families in the spring show`.
+10. Waivers: `Who still needs to sign the photo release?` then **Send photo release to missing families**, `Compliance overview`.
 
-Owner thread:
-3. `Post October tuition for all active students` then confirm.
-4. `Charge the Lopez family $85`
-5. `Maya checked in for Hip Hop` and `Mark all present for Tuesday 4pm`
-6. `Show outstanding balances over $50` then tap a **Charge** button to collect from the card on file.
-7. `Use Square at 2.6% + 15c` then `What did we pay in processing fees this month?`
-8. `Show this month's revenue and outstanding balances`
-
-Type `help` in the owner thread for all examples. Parents can also ask to switch or cancel a class; the request is forwarded to the owner thread.
+Parent threads:
+* `What's my balance?` then **Pay now**. `Pay October tuition`. `Buy 4 recital tickets`. `Sign photo release`.
+* `Book a trial for Sofia in Saturday 10am Contemporary`, `Can Maya switch to Thursday hip hop?`, `Cancel next week's class`, or any question. Each request shows up in the owner thread with **Approve** and **Decline** buttons (or `Open requests`, `Reply to Patel: ...`), and the parent gets a confirmation card with class, date, time and amount.
 
 ## Limitations
 
-Payments are simulated (no real card processing). Only the Chen family thread is shown in the UI, though every family has a thread in the data. Back office commands (payroll, costumes, recital, waivers, texting a class) are not built yet. Single user, no auth; data lives only in your browser.
+Payments, texts and emails are simulated. Commands are rule based, so phrasing should be close to the examples. Data lives only in your browser. Single user, no auth.
